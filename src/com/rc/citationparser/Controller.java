@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by rafaelcastro on 5/16/17.
@@ -92,14 +94,16 @@ class Controller {
 
                         //For Twin1
                         FileFormatter.setFile(twinFile1);
-                        String authorsRegexReady = generateReference(FileFormatter.getAuthors());
-                        String citationTwin1 = parser.getReference(authorsRegexReady);
+                        String authorsNamesTwin1 = FileFormatter.getAuthors();
+                        String authorsRegexReady = generateReference(authorsNamesTwin1);
+                        String citationTwin1 = parser.getReference(authorsRegexReady, authorsNamesTwin1);
                         FileFormatter.closeFile();
 
                         //For Twin2
                         FileFormatter.setFile(twinFile2);
-                        authorsRegexReady = generateReference(FileFormatter.getAuthors());
-                        String citationTwin2 = parser.getReference(authorsRegexReady);
+                        String authorsNamesTwin2 = FileFormatter.getAuthors();
+                        authorsRegexReady = generateReference(authorsNamesTwin2);
+                        String citationTwin2 = parser.getReference(authorsRegexReady, authorsNamesTwin2);
                         FileFormatter.closeFile();
                         //If one of the files is not referenced at all, return 0
                         if (citationTwin1.isEmpty() || citationTwin2.isEmpty()) {
@@ -127,21 +131,34 @@ class Controller {
                                 number2.append(c);
                             }
                             String referenceNumberOfTwin2 = number2.toString();
-                            System.out.println(referenceNumberOfTwin1);
-                            System.out.println(referenceNumberOfTwin2);
+                            System.out.println("Reference number of twin 1: " + referenceNumberOfTwin1);
+                            System.out.println("Reference number of twin 2: " +  referenceNumberOfTwin2);
 
                             int counter = 0;
 
+                            String patter1S = "\\b"+referenceNumberOfTwin1+"\\b";
+                            String pattern2S = "\\b"+referenceNumberOfTwin2+"\\b";
+
+                            Pattern pattern1 = Pattern.compile(patter1S);
+                            Pattern pattern2 = Pattern.compile(pattern2S);
+
+
+
                             //Get number
                             for (String citation : citationsCurrDoc) {
-                                if (citation.contains(referenceNumberOfTwin1) && citation.contains(referenceNumberOfTwin2)) {
+                                Matcher matcher1 = pattern1.matcher(citation);
+                                Matcher matcher2 = pattern2.matcher(citation);
+
+
+                                if (matcher1.find() && matcher2.find()) {
+                                    System.out.println("Twin citations " + citation);
                                     counter++;
                                 }
                             }
                             //Adds to map
                             nameOfDocToText.put(curr.getName(), counter);
 
-                            System.out.println(counter);
+                            System.out.println("Curr doc "+ curr.getName()+ " Number of times together " + counter);
                             parser.close();
                         }
 
@@ -255,7 +272,7 @@ class Controller {
 
                 String title = null;
                 while (!end) {
-                    cView.displayToScreen("Please write the exact title of the document. \n" +
+                    cView.displayToScreen("Please write the title of the document. You don't need to write more than the first 10 words. \n" +
                             "Ex: Apoptosis control by death and decoy receptors");
                     title = cView.getInput();
                     cView.displayToScreen("You typed: " + title);

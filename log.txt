@@ -1,0 +1,32 @@
+Input: 1
+File 1 name B.pdf
+File 2 name C.pdf
+
+Input: 2
+Input: 3
+Input: 1
+File 1 name B.pdf
+File 2 name B.pdf
+
+Input: 3
+Input: 1
+File 1 name A.pdf
+File 2 name A.pdf
+
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 3
+Input: 34
+Input: 4
+Input: 42
+Input: 2
