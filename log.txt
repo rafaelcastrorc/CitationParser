@@ -1,32 +1,111 @@
-Input: 1
-File 1 name B.pdf
-File 2 name C.pdf
 
-Input: 2
-Input: 3
-Input: 1
-File 1 name B.pdf
-File 2 name B.pdf
+Please select an option:
+Press 1 to set to twin files
+Press 2 to set the folder that contains the files that will be analyzed
+Press 3 to check the number of files that cite both
+Press 4 to see the instructions
+Press 5 to Exit
+1
+Not all pdf files are formatted the same. The program will try to get the necessary data, but you will have to verify its accuracy
+Please type the name of the first twin file. Ex: doc1.pdf
+B.pdf
+The title of the paper: Cleavage of BID by Caspase 8 Mediates
+the Mitochondrial Damage in the Fas
+Pathway of Apoptosis
 
-Input: 3
-Input: 1
-File 1 name A.pdf
-File 2 name A.pdf
-
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 3
-Input: 34
-Input: 4
-Input: 42
-Input: 2
+The authors: Screaton GR, Mongkolsapaya J
+If the information is correct press 1. 
+If you want the program to try to get the right information press 2. 
+To write the information manually press 3.
+2
+Loading
+May 24, 2017 12:18:45 AM org.apache.pdfbox.pdmodel.font.PDType1Font <init>
+WARNING: Using fallback font ArialMT for HelveticaNeue-Medium
+May 24, 2017 12:18:45 AM org.apache.pdfbox.pdmodel.font.PDType1Font <init>
+WARNING: Using fallback font Arial-BoldMT for HelveticaNeue-Bold
+May 24, 2017 12:18:45 AM org.apache.pdfbox.pdmodel.font.PDType1Font <init>
+WARNING: Using fallback font Arial-ItalicMT for HelveticaNeue-MediumItalic
+May 24, 2017 12:18:45 AM org.apache.pdfbox.pdmodel.font.PDSimpleFont toUnicode
+WARNING: No Unicode mapping for H11002 (50) in font DIBFDM+MathematicalPi-One
+{|6.0|}Cell, Vol. 94, 491–501, August 21, 1998, Copyright 1998 by Cell Press
+{|17.0|}Cleavage of BID by Caspase 8 Mediates
+the Mitochondrial Damage in the Fas
+Pathway of Apoptosis
+{|8.0|}membrane, mitochondrial depolarization, and the re-
+lease of cytochrome c (Liu et al., 1996; Vander Heiden
+et al., 1997). The release of cytochrome c may trigger
+the interaction of Apaf1, a mammalian CED-4 homolog,
+and Casp9, which in turn results in the activation of
+Honglin Li, Hong Zhu, Chi-jie Xu, and Junying Yuan*
+Department of Cell Biology
+Harvard Medical School
+Boston, Massachusetts 02115
+Casp9 (Li et al., 1997c; Zou et al., 1997). Activated Casp9
+then cleaves and activates pro-Casp3, an event thatSummary
+leads to the cleavage of other death substrates, cellular
+and nuclear morphological changes, and ultimately, cellWe report here that BID, a BH3 domain–containing
+death. An active site mutant of Casp9 (C287A) is ableproapoptotic Bcl2 family member, is a specific proxi-
+to block activation of Casp3 by Casp9 (Li et al., 1997c).mal substrate of Casp8 in the Fas apoptotic signaling
+Overexpression of Bcl2/Bclx{|4.0|}L {|8.0|}has been shown to blockpathway. While full-length BID is localized in cytosol,
+all apoptosis-induced mitochondrial changes (Kluck ettruncated BID (tBID) translocates to mitochondria and
+al., 1997; Vander Heiden et al., 1997; Yang et al., 1997).thus transduces apoptotic signals from cytoplasmic
+Since mitochondrial damage is an obligatory step inmembrane to mitochondria. tBID induces first the
+mediating the Fas signaling in type II but not type I cells,clustering of mitochondria around the nuclei and re-
+Bcl2/Bclx{|4.0|}L {|8.0|}can inhibit Fas-induced apoptosis in type IIlease of cytochrome c independent of caspase activ-
+but not type I cells (Scaffidi et al., 1998).ity, and then the loss of mitochondrial membrane po-
+Bcl2 and Bclx{|4.0|}L{|8.0|}, two members of the Bcl2 family, pre-tential, cell shrinkage, and nuclear condensation in
+vent apoptosis induced by a variety of death stimulia caspase-dependent fashion. Coexpression of Bclx{|4.0|}L
+{|8.0|}(Merry and Korsmeyer, 1997). They are localized mainlyinhibits all the apoptotic changes induced by tBID. Our
+to the outer mitochondrial, nuclear membranes and en-results indicate that BID is a mediator of mitochondrial
+doplasmic reticular membrane through their carboxy-damage induced by Casp8.
+terminal membrane anchorage domains. Both of them
+contain the Bcl2 homology domains designated BH1,Introduction
+BH2, BH3, and BH4, all of which are essential for the
+antiapoptotic activity of Bcl2/Bclx{|4.0|}L {|8.0|}(Merry and Kors-Caspase 8 (Casp8), a member of a mammalian caspase
+meyer, 1997; Huang et al., 1998). The Bcl2 family alsofamily, has been demonstrated to play a key role in
+includes a class of BH3 domain–containing death ago-mediating Fas-induced apoptosis (Boldin et al., 1996;
+nists, which may promote apoptosis by inhibiting theFernandes-Alnemri et al., 1996; Muzio et al., 1996; Cryns
+death antagonist members of the Bcl2 family (Merry andand Yuan, 1998). Cross-linking of the Fas receptor by
+Korsmeyer, 1997). Mutational analyses indicate that theengagement of the Fas ligand or agonistic antibodies
+BH3 domain of death agonists is required for their pro-results in the formation of so-called death-inducing sig-
+apoptotic activity and their interactions with Bcl2/Bclx{|4.0|}L{|8.0|}nal complex (DISC), which includes adaptor protein
+(Chittenden et al., 1995; Wang et al., 1996; Kelekar et
+FADD/MORT-1 and Casp8 (Kischkel et al., 1995). The
+al., 1997). It was recently reported that in a cell-free
+formation of the DISC leads to the activation of Casp8,
+Xenopus oocyte system, the BH3 domain alone can
+an initiator of the downstream apoptotic process that
+induce cytochrome c release and the activation of cas-
+includes the activation of Casp3, 26, and 27 and mito-
+pases that can be inhibited by Bcl2 (Cosulich et al.,
+chondrial damage (Salvesen and Dixit, 1997). Recently,
+1997). Thus, these BH3-containing death agonists may
+Scaffidi et al. (1998) have shown that there may be two play an important regulatory role in mediating apoptotic
+alternative Fas signaling pathways. In so-called Fas type
+mitochondrial damage. It is not clear, however, how
+I cells, a relatively large amount of Casp8 is recruited to
+these BH3 domain–containing proteins fit into the signal
+DISC upon receptor cross-linking. The activated Casp8
+transduction pathway of apoptosis and how they act to
+propagates the apoptotic signal by activating down- induce mitochondrial damage.
+stream caspases through proteolytic cleavage, as well In thisstudy, we demonstrate that BID, a death agonist
+as by triggering mitochondrial damages that in turn acti- member of the Bcl2/Bclx{|4.0|}L {|8.0|}family (Wang et al., 1996), is a
+vate a proteolytic cascade. In so-called Fas type II cells, specific proximal substrate of Casp8 in the Fas signaling
+a small amount of Casp8 is recruited to the DISC upon pathway. Cleavage of BID by Casp8 releases its potent
+receptor cross-linking, and activated Casp8 mediates proapoptotic activity, which in turn induces mitochon-
+downstream apoptotic events mainly through inducing drial damage and, ultimately, cell shrinkage and nuclear
+mitochondrial damage. These studies, however, did not condensation.Expressionof Bclx{|4.0|}L {|8.0|}inhibitsall the apoptotic
+reveal how active Casp8 induces mitochondrial damage. phenotypes induced by truncated BID (tBID), whereas
+A critical role of mitochondria in mediating apoptotic caspase inhibitors inhibit the loss of mitochondrial mem-
+signal transduction pathway has been demonstrated re- brane potential, cell shrinkage, and nuclear condensa-
+cently (Vander Heiden et al., 1997). Biochemical and tion, but not mitochondrial clustering and cytochrome
+structural changes of mitochondria in apoptosis include c release. Our study identified the first specific proximal
+mitochondrial swelling, disruption of mitochondrial outer substrate of Casp8 in the Fas pathway and a critical
+missing link between the activation of Casp8 and mito-
+chondrial damage.{|6.0|}*To whom correspondence should be addressed.
+-------------TESTING--------------
+4.0
+17.0
+Is this title of the document:
+Cleavage of BID by Caspase 8 Mediates the Mitochondrial Damage in the Fas Pathway of Apoptosis ?
+Press Y to save this as the title, press N to manually input the name

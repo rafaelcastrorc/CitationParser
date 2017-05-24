@@ -1,0 +1,12 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="CitationParser:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/CitationParser_jar</output-path>
+    <root id="archive" name="CitationParser.jar">
+      <element id="module-output" name="CitationParser" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/pdfbox-2.0.6(1).jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/fontbox-2.0.6.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/commons-logging-1.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/common-lang3.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

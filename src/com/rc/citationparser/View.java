@@ -167,4 +167,12 @@ class View {
         }
         return logFile;
     }
+
+    /**
+     * Prints an error into the comand line
+     * @param s - error that needs to be printed
+     */
+    public void displayErrorToScreen(String s) {
+        System.err.println(s);
+    }
 }
