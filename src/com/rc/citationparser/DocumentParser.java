@@ -26,20 +26,24 @@ class DocumentParser {
     private COSDocument cosDoc;
     private PDDocument pdDoc;
     private String parsedText = "";
-    private boolean isNumbered = false;
-    protected float largestFont;
-    protected float smallestFont;
-    protected HashMap<Float, Integer> fontSizes;
+    private String formattedParsedText = "";
+    float largestFont;
+    float smallestFont;
+    HashMap<Float, Integer> fontSizes;
+    private File file;
+    private float textBodySize;
 
 
     /**
      * Constructor. Takes 1 argument.
      *
-     * @param fileToParse - pdf document that needs to be parsed.
+     * @param fileToParse    - pdf document that needs to be parsed.
      * @param parseEntireDoc - true if you want to parse the entire file, false to parse only the first page
+     * @param getFormat      - true if you want to get the format of the text, false if you only want the plain text
      * @throws IOException - If there is an error reading the file
      */
-    DocumentParser(File fileToParse, boolean parseEntireDoc) throws IOException {
+    DocumentParser(File fileToParse, boolean parseEntireDoc, boolean getFormat) throws IOException {
+        this.file = fileToParse;
         this.log = Logger.getInstance();
         this.pdfStripper = null;
         parser = new PDFParser(new RandomAccessBufferedFileInputStream(fileToParse));
@@ -51,64 +55,75 @@ class DocumentParser {
         smallestFont = Float.POSITIVE_INFINITY;
         fontSizes = new HashMap<>();
 
-        pdfStripper = new PDFTextStripper() {
-            //Modifies the way the text is parsed by including font size
-            float prevFontSize = 0;
+        if (getFormat) {
+            pdfStripper = new PDFTextStripper() {
+                //Modifies the way the text is parsed by including font size
+                float prevFontSize = 0;
 
-            protected void writeString(String text, List<TextPosition> textPositions) throws IOException
-            {
+                protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
 
-                StringBuilder builder = new StringBuilder();
+                    StringBuilder builder = new StringBuilder();
 
-                for (TextPosition position : textPositions)
-                {
-                    float baseSize = position.getFontSizeInPt();
+                    for (TextPosition position : textPositions) {
+                        float baseSize = position.getFontSizeInPt();
 
-                    if (baseSize != prevFontSize)
-                    {
-                        builder.append("{|").append(baseSize).append("|}");
-                        prevFontSize = baseSize;
-                        if (smallestFont > baseSize) {
-                            smallestFont = baseSize;
+                        if (baseSize != prevFontSize) {
+                            builder.append("{|").append(baseSize).append("|}");
+                            prevFontSize = baseSize;
+                            if (smallestFont > baseSize) {
+                                smallestFont = baseSize;
+                            }
+                            if (largestFont < baseSize) {
+                                largestFont = baseSize;
+                            }
+                            if (fontSizes.get(baseSize) == null) {
+                                fontSizes.put(baseSize, 1);
+                            } else {
+                                int prev = fontSizes.get(baseSize);
+                                fontSizes.put(baseSize, prev + 1);
+                            }
                         }
-                        if (largestFont < baseSize) {
-                            largestFont = baseSize;
-                        }
-                        if (fontSizes.get(baseSize) == null) {
-                            fontSizes.put(baseSize, 1);
-                        }
-                        else {
-                            int prev = fontSizes.get(baseSize);
-                            fontSizes.put(baseSize, prev + 1);
-                        }
+                        builder.append(position.getUnicode());
                     }
-                     builder.append(position.getUnicode());
-                }
 
-                writeString(builder.toString());
-            }
-        };
+                    writeString(builder.toString());
+                }
+            };
+        } else {
+            pdfStripper = new PDFTextStripper();
+        }
+
         pdDoc = new PDDocument(cosDoc);
         pdfStripper.setStartPage(1);
         if (parseEntireDoc) {
             pdfStripper.setEndPage(pdDoc.getNumberOfPages());
-        }
-        else {
+        } else {
             pdfStripper.setEndPage(1);
         }
-        this.parsedText = pdfStripper.getText(pdDoc);
-        getText(); //delete
+        if (getFormat) {
+            this.formattedParsedText = pdfStripper.getText(pdDoc);
+        } else {
+            this.parsedText = pdfStripper.getText(pdDoc);
+        }
+       // getText(getFormat); //delete
 
     }
+
 
     /**
      * Gets the plain text from a pdf document. Removes all formatting
      *
      * @return string with all the text
      */
-    protected String getText() {
-        System.out.print(parsedText);
-        return parsedText;
+    protected String getText(boolean isFormatted) {
+        if (isFormatted) {
+            System.out.print(formattedParsedText);// delete
+            return formattedParsedText;
+        }
+        else {
+            System.out.print(parsedText);// delete
+            return parsedText;
+        }
     }
 
     /**
@@ -120,12 +135,12 @@ class DocumentParser {
      * Ex: Jacobson MD, Weil M, Raff MC: Programmed cell death in animal development. Cell 1997, 88:347-354.
      *
      * @param authorRegex - Regex based on the names of the authors of a given twin paper.
-     * @param authors - authors of a given twin paper.
+     * @param authors     - authors of a given twin paper.
      * @return string with the reference used in the paper. Starts with author name and finishes with the year the paper was published.
      */
     String getReference(String authorRegex, String authors) {
         //Pattern use to capture the citation. Starts with the author name and ends with the year the paper was published.
-        String patternCase1 = "[^.]*(\\d+(\\.( ).*))*(" + authorRegex + ")([^;)])*?((\\b((18|19|20)\\d{2}( )?([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+        String patternCase1 = "[^.\n]*(\\d+(\\.( ).*))*(" + authorRegex + ")([^;)])*?((\\b((18|19|20)\\d{2}( )?([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
         Pattern pattern1 = Pattern.compile(patternCase1);
         Matcher matcher1 = pattern1.matcher(parsedText);
         ArrayList<String> result = new ArrayList<>();
@@ -149,8 +164,6 @@ class DocumentParser {
             result = solveReferenceTies(result, authors);
         }
         return result.get(0);
-
-
     }
 
     /**
@@ -160,7 +173,7 @@ class DocumentParser {
      * @param authors - names of the authors of a given twin paper
      * @return arrayList with one element, which is the correct reference.
      */
-    protected ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
+     private ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
         ArrayList<String> newResult = new ArrayList<>();
         int smallest = Integer.MAX_VALUE;
 
@@ -186,32 +199,30 @@ class DocumentParser {
     /**
      * Gets all the in-text citation of a given pdf document.
      * @return ArrayList with all the citations
+     * @param areRefNumbered - are the references numbered in the bibliography.
+     *                         Ex. 1. Ellis, John ... 2010.
      */
-    protected ArrayList<String> getInTextCitations() {
-        //For the case where in-text citations are displayed as numbers
+     ArrayList<String> getInTextCitations(boolean areRefNumbered) {
+        //Case 1: For the case where in-text citations are displayed as numbers
         //Ex: [1] or [4,5] or [4,5•] or [4•] or [4-20]
-        ArrayList<String> result1 = new ArrayList<>();
-        String patternCase1 = "\\[\\d+(•)*(–\\d+(•)*)*(,( )*\\d+(•)*((–\\d+)(•)*)*)*]";
-        Pattern pattern1 = Pattern.compile(patternCase1);
-        Matcher matcher1 = pattern1.matcher(parsedText);
-        System.out.println();
-        while (matcher1.find()) {
-            String answer = matcher1.group();
-            log.writeToLogFile("Found CASE 1 " + answer);
-            log.newLine();
-            //If citation contains a '–', it needs to be modified
-            if (answer.contains("–")) {
-                answer = inTextCitationContainsDash(answer);
-            }
+         ArrayList<String> result1 = getInTextCitationsCase1(0);
+         //If there are less than 10 references or there are no references at all, but ref are numbered, then try finding superscript numbered refs
+         if (areRefNumbered && (result1.isEmpty() || result1.size() < 10)) {
+             //Get the text formatted
+             DocumentParser parsedDoc = null;
+             try {
+                  parsedDoc = new DocumentParser(file, true, true);
+             } catch (IOException e) {
 
-            result1.add(answer);
+                 System.err.println("There was an error parsing the file");
+                 return new ArrayList<>();
+             }
+             float superScriptSize = getInTextCitationsForSuperScripts(parsedDoc.fontSizes, parsedDoc.smallestFont);
+             getInTextCitationsCase1(superScriptSize);
 
-        }
-        if (result1.isEmpty()) {
-            log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 1");
-            log.newLine();
-            System.out.println("WARNING - Could not find in-text citations for document - CASE 1"); //delete
-        }
+         }
+
+
         ArrayList<String> result2 = new ArrayList<>();
         String patternCase2 = "\\(\\D*(unpublished data|data not shown|\\d{4})([a-zA-Z](,[a-zA-Z])*)*(, (unpublished data|data not shown|\\d{4}))*(;\\D*\\d{4}([a-zA-Z](,[a-zA-Z])*)*)*\\)";
         Pattern pattern2 = Pattern.compile(patternCase2);
@@ -232,7 +243,6 @@ class DocumentParser {
             log.newLine();
         }
 
-
         if (result1.isEmpty() && result2.isEmpty()) {
             System.err.println("ERROR - Could not find in-text citations in this document"); //delete
             log.writeToLogFile("ERROR - Could not find in-text citations in this document");
@@ -241,24 +251,25 @@ class DocumentParser {
         }
 
 
+        //Todo: change how this works
         if (result1.size() > result2.size()) {
             //Case 1 is going to be used
-            isNumbered = true;
             return result1;
         } else {
             //Case 2 is going to be used
             //Might change in the future Todo
-            isNumbered = false;
             return result2;
 
         }
 
     }
 
+
     /**
      * Formats a number citation that contains a dash
      * Ex: [20-23] It needs to be displayed as [20,21,22,23]
      * Ex: [20,23-25, 27] needs to be displayed as [20, 23, 24, 25, 27]
+     *
      * @param citationWithDash - citation that contains the dash
      * @return string with the citation formatted correctly
      */
@@ -336,46 +347,99 @@ class DocumentParser {
 
     }
 
-    /**
-     * True if the bibliography citations are numbers. Ex: [4], [5, 7]
-     * False if the citations are between parenthesis and written out. Ex (Ellis et al 2010).
-     * @return - boolean
-     */
-    boolean bibliographyIsNumbered() {
-        return isNumbered;
-    }
 
 
-    protected String getTitle() {
-        String pattern = "(\\{\\|"+ largestFont +")([^{])*";
+    String getTitle() {
+        String pattern = "(\\{\\|" + largestFont + ")([^{])*";
         Pattern pattern1 = Pattern.compile(pattern);
-        Matcher matcher = pattern1.matcher(parsedText);
-        String result ="";
+        Matcher matcher = pattern1.matcher(formattedParsedText);
+        String result = "";
         if (matcher.find()) {
             result = matcher.group();
         }
         if (result.isEmpty()) {
             return "No title found";
         }
+        result = result.replaceAll("(\\{\\|)(\\d)*([^A-z])*", " ");
         result = result.replace("\n", " ").replace("\r", " ");
-        boolean bracketIsVisible = false;
-        boolean startParsingTitle = false;
-        StringBuilder sb = new StringBuilder();
-        for (Character c :result.toCharArray()) {
-            if (c == '|') {
-                bracketIsVisible = true;
-            }
-            else if (bracketIsVisible) {
-                if (c == '}') {
-                    bracketIsVisible = false;
-                    startParsingTitle = true;
+        result = result.replaceAll("^\\s+", "");
+        return result;
+    }
+
+
+     private ArrayList<String> getInTextCitationsCase1(float superScriptSize) {
+         ArrayList<String> result = new ArrayList<>();
+         if (superScriptSize == 0) {
+            String patternCase1 = "\\[\\d+(•)*(–\\d+(•)*)*(,( )*\\d+(•)*((–\\d+)(•)*)*)*]";
+            Pattern pattern1 = Pattern.compile(patternCase1);
+            Matcher matcher1 = pattern1.matcher(parsedText);
+            System.out.println();
+            while (matcher1.find()) {
+                String answer = matcher1.group();
+                log.writeToLogFile("Found CASE 1 " + answer);
+                log.newLine();
+                //If citation contains a '–', it needs to be modified
+                if (answer.contains("–")) {
+                    answer = inTextCitationContainsDash(answer);
                 }
+                result.add(answer);
             }
-            else if (startParsingTitle) {
-                sb.append(c);
-            }
+
+        }
+        else {
+             //If there could be superScript in-text citations
+
+
+
         }
 
-        return sb.toString();
+         if (result.isEmpty()) {
+             log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 1");
+             log.newLine();
+             System.out.println("WARNING - Could not find in-text citations for document - CASE 1"); //delete
+         }
+        return result;
     }
+
+    //Case When the text citations appear as small numbers m^4,5
+    private float getInTextCitationsForSuperScripts(HashMap<Float, Integer> fontSizes, float smallestFont) {
+        TreeMap<Integer, Float> frequencies = new TreeMap<>(Collections.reverseOrder());
+        for (float size: fontSizes.keySet()){
+            int numberOfTimes = fontSizes.get(size);
+            frequencies.put(numberOfTimes, size);
+        }
+        textBodySize = Float.POSITIVE_INFINITY;
+        float superScriptSize = 0;
+
+        boolean first = true;
+        boolean found = false;
+        for (int s : frequencies.keySet()) {
+            //Normally textbody size is greater than 7
+            if (first && frequencies.get(s) >= 7.0) {
+                textBodySize = frequencies.get(s);
+                first = false;
+            }
+            else {
+                if (!found) {
+                    float curr = frequencies.get(s);
+                    if (smallestFont <= curr && curr < textBodySize && curr < 7.0) {
+                        superScriptSize = curr;
+                    }
+                    found = true;
+                }
+            }
+            if (found && !first) {
+                break;
+            }
+
+        }
+
+
+        System.out.println("The body text size should be " + textBodySize); //delete
+        System.out.println("The superscript text size should be " + superScriptSize); //delete
+
+        return superScriptSize;
+    }
+
+
 }

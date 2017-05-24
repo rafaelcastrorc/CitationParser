@@ -95,13 +95,11 @@ class Controller {
                 File curr = comparisonFiles[i];
                 if (!curr.getName().equals(".DS_Store")) {
                     try {
-                        DocumentParser parser = new DocumentParser(curr, true);
+                        DocumentParser parser = new DocumentParser(curr, true, false);
 
-                        ArrayList<String> citationsCurrDoc = parser.getInTextCitations();
 
                         //For Twin1
                         FileFormatter.setFile(twinFile1);
-
                         //Retrieve the authors of the paper
                         String authorsNamesTwin1 = FileFormatter.getAuthors();
                         //Get a regex with all possible name combinations of the authors
@@ -120,15 +118,45 @@ class Controller {
                         FileFormatter.closeFile();
 
 
+
                         if (citationTwin1.isEmpty() || citationTwin2.isEmpty()) {
+                            //If one of the papers is not cited, do not process anything else
                             System.out.println("One of the papers is not cited so result is 0");
                             nameOfDocToText.put(curr.getName(), 0);
 
                         } else {
-                            if (parser.bibliographyIsNumbered()) {
-                                //Case 1: When in text citations are numbers and the reference are numbered
-                                //Ex: [4, 5] or  [5]
+
+                            //Check if the references are numbered
+                            StringBuilder number = new StringBuilder();
+                            for (Character c : citationTwin1.toCharArray()) {
+                                if (c == '.') {
+                                    break;
+                                }
+                                number.append(c);
+
+                            }
+                            boolean areRefNumbered = false;
+                            String referenceNumberOfTwin = number.toString();
+                            try {
+                                //The reference are number
+                                Integer.parseInt(referenceNumberOfTwin);
+                                areRefNumbered = true;
+                            } catch (NumberFormatException e) {
+                                //References are not numbered
+                            }
+
+                            //Gets all citations of curr doc
+                            ArrayList<String> citationsCurrDoc = parser.getInTextCitations(areRefNumbered);
+
+                            if (areRefNumbered) {
+                                //Reference are in this format
                                 //4. Stewart, John 2010.
+
+                                //Can parse the following cases:
+                                //Case 1: When in text citations are numbers between brackets
+                                //Ex: [4, 5] or  [5]
+                                //Case 2: When in text citations are numbers, but in the format of superscript
+                                //Ex: word^(5,6)
 
                                 StringBuilder number1 = new StringBuilder();
                                 for (Character c : citationTwin1.toCharArray()) {
@@ -139,6 +167,7 @@ class Controller {
 
                                 }
                                 String referenceNumberOfTwin1 = number1.toString();
+
                                 StringBuilder number2 = new StringBuilder();
                                 for (Character c : citationTwin2.toCharArray()) {
                                     if (c == '.') {
@@ -211,12 +240,8 @@ class Controller {
                     } catch (IOException e) {
                         cView.displayErrorToScreen("There was an error parsing document " + curr.getName());
                     }
-
-
-
                 }
             }
-
 
         }
 
@@ -245,11 +270,8 @@ class Controller {
     }
 
 
-
-
-
     //Todo: one single method this
-    //Based on LevenshteinDistance, uses the authors names to find the most similar citation
+    //Based on Levenshtein Distance, uses the authors names to find the most similar citation
     protected ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
         ArrayList<String> newResult = new ArrayList<>();
         int smallest = Integer.MAX_VALUE;
@@ -260,7 +282,6 @@ class Controller {
             if (newDistance == smallest) {
                 //Do it based on the first authors name only
                 cView.displayErrorToScreen("There was an error finding one of the citations, please report to developer");
-
             }
             if (newDistance < smallest) {
                 smallest = newDistance;
@@ -313,8 +334,6 @@ class Controller {
         else {
             pattern = "((\\b"+yearAndLetterString+"\\b)|(\\b("+yearString+"( )?([A-z]=?[^"+letterString+"])*((,( )?([A-z]=?[^"+letterString+"])*)*(( )?)"+letterString+")+)\\b)|(unpublished data)|(data not shown))";
         }
-
-
         Pattern yearPattern = Pattern.compile(pattern);
         Matcher matcher = yearPattern.matcher(citation);
         if (matcher.find()) {
@@ -344,8 +363,6 @@ class Controller {
         //Generates all possible references that could be found in a bibliography based on authors names
         //Ex: Xu Luo, X Luo, X. Luo, Luo X. Luo X
         //Splits string by authors names
-
-
         List<String> authorsNames = Arrays.asList(authors.split("\\s*,\\s*"));
         int authorCounter = 0;
         //Do it based on only the first author's name IMPORTANT ASSUMPTION
@@ -353,9 +370,7 @@ class Controller {
             String temp = authorsNames.get(0);
             authorsNames = new ArrayList<>();
             authorsNames.add(temp);
-
         }
-
 
         StringBuilder authorsRegex = new StringBuilder();
         for (String currAuthor : authorsNames) {
@@ -457,7 +472,7 @@ class Controller {
                 cView.displayToScreen("Loading");
                 DocumentParser documentParser = null;
                 try {
-                    documentParser = new DocumentParser(file, false);
+                    documentParser = new DocumentParser(file, false, true);
                 } catch (IOException e) {
                     cView.displayErrorToScreen("There was an error parsing the file");
                 }
@@ -484,11 +499,8 @@ class Controller {
                 }
                 documentParser.close();
 
-
-
-
-
             }
+
             else if (choice == 3) {
                 //Add title to the document
                 boolean end = false;
@@ -532,6 +544,8 @@ class Controller {
         }
         return file;
     }
+
+
 
 
 //
