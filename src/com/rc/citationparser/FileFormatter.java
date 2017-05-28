@@ -14,9 +14,9 @@ import java.io.IOException;
  * Used to retrieve the information from a given document, as well as to correctly format it.
  */
 class FileFormatter {
-    protected static File file;
-    protected static COSDocument cosDoc;
-    protected static PDDocument pdDoc;
+    static File file;
+    private static COSDocument cosDoc;
+    private static PDDocument pdDoc;
     //Since pdf files not always contains the title, it is necessary to manually assign it
 
 
@@ -24,15 +24,15 @@ class FileFormatter {
      * Sets the file that will be formated
      * @param file - file to be formatted
      */
-    static void setFile(File file) {
+    static void setFile(File file) throws IOException {
         FileFormatter.file = file;
         formatFile();
     }
 
     /**
-     * Constructor. Takes no args.
+     * Scans the document with pdfBox to allow modifications.
      */
-    static void formatFile() {
+    private static void formatFile() throws IOException {
         PDFParser parser;
         try {
             parser = new PDFParser(new RandomAccessBufferedFileInputStream(file));
@@ -42,6 +42,7 @@ class FileFormatter {
             pdDoc = new PDDocument(cosDoc);
 
         } catch (IOException e) {
+            throw new IOException("Could not parse file");
         }
     }
 
@@ -107,18 +108,15 @@ class FileFormatter {
         return pdDoc.getDocumentInformation().getTitle();
     }
 
-
-
-
     /**
      * Closes the current file
      */
-    static void closeFile() {
+    static void closeFile() throws IOException {
         try {
             pdDoc.close();
             cosDoc.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IOException("There was a problem closing the file");
         }
 
     }

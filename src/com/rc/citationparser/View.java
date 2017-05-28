@@ -12,9 +12,11 @@ class View {
 
     private final Scanner scanner;
 
-    public View() {
+    public View(boolean start) {
         scanner = new Scanner(System.in);
-        System.out.println("Welcome!");
+        if (start) {
+            System.out.println("Welcome!");
+        }
     }
 
 

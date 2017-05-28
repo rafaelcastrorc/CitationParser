@@ -46,6 +46,9 @@ class DocumentParser {
         this.file = fileToParse;
         this.log = Logger.getInstance();
         this.pdfStripper = null;
+        if (!fileToParse.exists() || !fileToParse.canRead() ) {
+            throw new IOException("ERROR: File does not exist");
+        }
         parser = new PDFParser(new RandomAccessBufferedFileInputStream(fileToParse));
         parser.parse();
         cosDoc = parser.getDocument();
@@ -68,7 +71,8 @@ class DocumentParser {
                         float baseSize = position.getFontSizeInPt();
 
                         if (baseSize != prevFontSize) {
-                            builder.append("{|").append(baseSize).append("|}");
+                            //Format {|textSize&yPosition|}
+                            builder.append("{|").append(baseSize).append("&").append(position.getYDirAdj()).append("|}");
                             prevFontSize = baseSize;
                             if (smallestFont > baseSize) {
                                 smallestFont = baseSize;
@@ -105,7 +109,8 @@ class DocumentParser {
         } else {
             this.parsedText = pdfStripper.getText(pdDoc);
         }
-       // getText(getFormat); //delete
+
+        //getText(getFormat); //delete
 
     }
 
@@ -119,8 +124,7 @@ class DocumentParser {
         if (isFormatted) {
             System.out.print(formattedParsedText);// delete
             return formattedParsedText;
-        }
-        else {
+        } else {
             System.out.print(parsedText);// delete
             return parsedText;
         }
@@ -148,7 +152,6 @@ class DocumentParser {
         log.newLine();
 
         while (matcher1.find()) {
-            System.out.println("Found " + matcher1.group());
             log.writeToLogFile("Found " + matcher1.group());
             log.newLine();
             result.add(matcher1.group());
@@ -173,7 +176,7 @@ class DocumentParser {
      * @param authors - names of the authors of a given twin paper
      * @return arrayList with one element, which is the correct reference.
      */
-     private ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
+    private ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
         ArrayList<String> newResult = new ArrayList<>();
         int smallest = Integer.MAX_VALUE;
 
@@ -198,75 +201,91 @@ class DocumentParser {
 
     /**
      * Gets all the in-text citation of a given pdf document.
-     * @return ArrayList with all the citations
+     *
      * @param areRefNumbered - are the references numbered in the bibliography.
-     *                         Ex. 1. Ellis, John ... 2010.
+     *                       Ex. 1. Ellis, John ... 2010.
+     * @return ArrayList with all the citations
      */
-     ArrayList<String> getInTextCitations(boolean areRefNumbered) {
+    ArrayList<String> getInTextCitations(boolean areRefNumbered) {
         //Case 1: For the case where in-text citations are displayed as numbers
         //Ex: [1] or [4,5] or [4,5•] or [4•] or [4-20]
-         ArrayList<String> result1 = getInTextCitationsCase1(0);
-         //If there are less than 10 references or there are no references at all, but ref are numbered, then try finding superscript numbered refs
-         if (areRefNumbered && (result1.isEmpty() || result1.size() < 10)) {
-             //Get the text formatted
-             DocumentParser parsedDoc = null;
-             try {
-                  parsedDoc = new DocumentParser(file, true, true);
-             } catch (IOException e) {
+        ArrayList<String> result1 = getInTextCitationsCase1("");
 
-                 System.err.println("There was an error parsing the file");
-                 return new ArrayList<>();
-             }
-             float superScriptSize = getInTextCitationsForSuperScripts(parsedDoc.fontSizes, parsedDoc.smallestFont);
-             getInTextCitationsCase1(superScriptSize);
+        //If there are less than 10 references or there are no references at all, but ref are numbered, then try finding superscript numbered refs
+        if (areRefNumbered && (result1.isEmpty() || result1.size() < 10)) {
+            //First it needs to get the text formatted
+            DocumentParser parsedDoc = null;
+            try {
+                parsedDoc = new DocumentParser(file, true, true);
+            } catch (IOException e) {
 
-         }
+                System.err.println("There was an error parsing the file");
+                return new ArrayList<>();
+            }
+            this.formattedParsedText = parsedDoc.formattedParsedText;
+            String superScriptSize = getSuperScriptSize(parsedDoc.fontSizes, parsedDoc.smallestFont);
 
-
-        ArrayList<String> result2 = new ArrayList<>();
-        String patternCase2 = "\\(\\D*(unpublished data|data not shown|\\d{4})([a-zA-Z](,[a-zA-Z])*)*(, (unpublished data|data not shown|\\d{4}))*(;\\D*\\d{4}([a-zA-Z](,[a-zA-Z])*)*)*\\)";
-        Pattern pattern2 = Pattern.compile(patternCase2);
-        Matcher matcher2 = pattern2.matcher(parsedText);
-
-        System.out.println();
-        while (matcher2.find()) {
-            String answer = matcher2.group();
-            log.writeToLogFile("Found CASE 2 " + answer);
-            log.newLine();
-            result2.add(answer);
+            result1 = getInTextCitationsCase1(superScriptSize);
 
         }
 
-        if (result2.isEmpty()) {
-            System.out.println("WARNING - Could not find in-text citations for document - CASE 2");//delete
-            log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 2");
-            log.newLine();
+
+        if (result1.size() < 50) {
+            ArrayList<String> result2 = new ArrayList<>();
+            String patternCase2 = "\\(\\D*(unpublished data|data not shown|\\d{4})([a-zA-Z](,[a-zA-Z])*)*(, (unpublished data|data not shown|\\d{4}))*(;\\D*\\d{4}([a-zA-Z](,[a-zA-Z])*)*)*\\)";
+            Pattern pattern2 = Pattern.compile(patternCase2);
+            Matcher matcher2 = pattern2.matcher(parsedText);
+
+
+            System.out.println();
+            while (matcher2.find()) {
+                String answer = matcher2.group();
+                log.writeToLogFile("Found CASE 2 " + answer);
+                log.newLine();
+                result2.add(answer);
+
+            }
+
+            if (result2.isEmpty()) {
+                System.out.println("WARNING - Could not find in-text citations for document - CASE 2");//delete
+                log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 2");
+                log.newLine();
+            }
+
+            if (result1.isEmpty() && result2.isEmpty()) {
+                System.err.println("ERROR - Could not find in-text citations in this document"); //delete
+                log.writeToLogFile("ERROR - Could not find in-text citations in this document");
+                log.newLine();
+                return new ArrayList<>();
+            }
+
+
+            //Todo: change how this works
+            if (result1.size() > result2.size()) {
+                //Case 1 is going to be used
+                return result1;
+            } else {
+                //Case 2 is going to be used
+                //Might change in the future Todo
+                return result2;
+
+            }
         }
 
-        if (result1.isEmpty() && result2.isEmpty()) {
-            System.err.println("ERROR - Could not find in-text citations in this document"); //delete
-            log.writeToLogFile("ERROR - Could not find in-text citations in this document");
-            log.newLine();
-            return new ArrayList<>();
-        }
 
-
-        //Todo: change how this works
-        if (result1.size() > result2.size()) {
-            //Case 1 is going to be used
-            return result1;
-        } else {
-            //Case 2 is going to be used
-            //Might change in the future Todo
-            return result2;
-
-        }
-
+//        //Todo: fix case two year only problem (1998)
+//        (1998)
+//        (1998)
+//        (1998)
+//        (1998)
+//        (1997)
+//        (1998)
+        return result1;
     }
 
 
     /**
-     * Formats a number citation that contains a dash
+     * Formats a number citation that contains a dash or ± (which is also a dash)
      * Ex: [20-23] It needs to be displayed as [20,21,22,23]
      * Ex: [20,23-25, 27] needs to be displayed as [20, 23, 24, 25, 27]
      *
@@ -279,7 +298,7 @@ class DocumentParser {
         StringBuilder sb = new StringBuilder();
         boolean thereIsADash = false;
         for (Character c : citationWithDash.toCharArray()) {
-            if (c == '–') {
+            if (c == '–' || c == '±') {
                 newAnswer.add(sb.toString());
                 sb = new StringBuilder();
                 counter++;
@@ -348,7 +367,6 @@ class DocumentParser {
     }
 
 
-
     String getTitle() {
         String pattern = "(\\{\\|" + largestFont + ")([^{])*";
         Pattern pattern1 = Pattern.compile(pattern);
@@ -367,78 +385,190 @@ class DocumentParser {
     }
 
 
-     private ArrayList<String> getInTextCitationsCase1(float superScriptSize) {
-         ArrayList<String> result = new ArrayList<>();
-         if (superScriptSize == 0) {
+    private ArrayList<String> getInTextCitationsCase1(String superScriptSize) {
+        ArrayList<String> result = new ArrayList<>();
+        Matcher matcher;
+
+        //If there is no super script size
+        if (superScriptSize.isEmpty()) {
+            //If there is no superscript
             String patternCase1 = "\\[\\d+(•)*(–\\d+(•)*)*(,( )*\\d+(•)*((–\\d+)(•)*)*)*]";
             Pattern pattern1 = Pattern.compile(patternCase1);
-            Matcher matcher1 = pattern1.matcher(parsedText);
+            matcher = pattern1.matcher(parsedText);
             System.out.println();
-            while (matcher1.find()) {
-                String answer = matcher1.group();
-                log.writeToLogFile("Found CASE 1 " + answer);
-                log.newLine();
-                //If citation contains a '–', it needs to be modified
-                if (answer.contains("–")) {
-                    answer = inTextCitationContainsDash(answer);
-                }
-                result.add(answer);
+
+        } else {
+
+            //If there could be superScript in-text citations
+
+            String pattern = "(([^A-z])(\\{\\|(" + superScriptSize + ")&(\\d*(\\.)?\\d*)\\|})(?!\\)|\\(|-|[A-z]|\\d*\\.|,)([^A-z(}\\n])*)|(([A-z]{2,})(\\{\\|(" + superScriptSize + ")&(\\d*(\\.)?\\d*)\\|})(?!\\)|\\(|-|[A-z]|\\d*\\.|,)([^A-z(}\\n])*)";
+            Pattern pattern1 = Pattern.compile(pattern);
+            matcher = pattern1.matcher(formattedParsedText);
+        }
+
+        while (matcher.find()) {
+            String answer = matcher.group();
+            log.writeToLogFile("Found CASE 1 " + answer);
+            log.newLine();
+            answer = formatSuperScript(answer);
+            //If citation contains a '–', it needs to be modified
+            if (answer.contains("–") || answer.contains("±")) {
+                answer = inTextCitationContainsDash(answer);
             }
 
-        }
-        else {
-             //If there could be superScript in-text citations
-
-
-
+            if (!answer.isEmpty()) {
+                result.add(answer);
+            }
         }
 
-         if (result.isEmpty()) {
-             log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 1");
-             log.newLine();
-             System.out.println("WARNING - Could not find in-text citations for document - CASE 1"); //delete
-         }
+        if (result.isEmpty()) {
+            log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 1");
+            log.newLine();
+            System.out.println("WARNING - Could not find in-text citations for document - CASE 1"); //delete
+        }
         return result;
     }
 
     //Case When the text citations appear as small numbers m^4,5
-    private float getInTextCitationsForSuperScripts(HashMap<Float, Integer> fontSizes, float smallestFont) {
+    //Superscripts can be of more than 1 size
+    //The regex cn confuse cases where m_1, so have to handle that
+    //IMPORTANT: To identify a superscript, we base on the y position of the text right after.
+    //If it is a superscript citation, that is text^citation rather than text_number, the y position after the citation has to bee
+    //larger. Ex: {|fontSizePossCitation&Y1|}5{|fontSizeNormalText&Y2|} bla bla bla.
+    // If Y2>Y1, text is citation, if not, ignore.
+    private String getSuperScriptSize(HashMap<Float, Integer> fontSizes, float smallestFont) {
         TreeMap<Integer, Float> frequencies = new TreeMap<>(Collections.reverseOrder());
-        for (float size: fontSizes.keySet()){
+        StringBuilder superScriptSize = new StringBuilder();
+
+        //Order the frequencies in descending order
+        for (float size : fontSizes.keySet()) {
             int numberOfTimes = fontSizes.get(size);
             frequencies.put(numberOfTimes, size);
         }
         textBodySize = Float.POSITIVE_INFINITY;
-        float superScriptSize = 0;
 
         boolean first = true;
         boolean found = false;
-        for (int s : frequencies.keySet()) {
+        for (int numberOfTimesUSed : frequencies.keySet()) {
             //Normally textbody size is greater than 7
-            if (first && frequencies.get(s) >= 7.0) {
-                textBodySize = frequencies.get(s);
+            if (first && frequencies.get(numberOfTimesUSed) >= 7.0) {
+                textBodySize = frequencies.get(numberOfTimesUSed);
                 first = false;
-            }
-            else {
-                if (!found) {
-                    float curr = frequencies.get(s);
-                    if (smallestFont <= curr && curr < textBodySize && curr < 7.0) {
-                        superScriptSize = curr;
+            } else {
+
+                    float curr = frequencies.get(numberOfTimesUSed);
+
+                    if (numberOfTimesUSed < 50) {
+                        //If it happens less than 50 times, we have already considered everything we needed so we break
+                        break;
                     }
-                    found = true;
-                }
+                    //It can only be a superscript if:
+                    //-It is at least same size as the smallest text in the doc
+                    //-It is smaller than the text body size
+                    //-It is smaller than 7.0
+                    //-It was used at least 50 times
+                    if (smallestFont <= curr && curr < textBodySize && curr < 7.0 && numberOfTimesUSed > 50) {
+                        if (!found) {
+                            superScriptSize.append(curr);
+                            found = true;
+                        }
+                        else {
+                            superScriptSize.append("|").append(curr);
+
+                        }
+                    }
+
+
             }
-            if (found && !first) {
-                break;
-            }
+
 
         }
-
-
         System.out.println("The body text size should be " + textBodySize); //delete
         System.out.println("The superscript text size should be " + superScriptSize); //delete
 
-        return superScriptSize;
+        return superScriptSize.toString();
+    }
+
+    //Makes sure that is a valid superscript. If y2 > y1, then is valid. If empty, ignore, if no y2, then check character before.
+    private String formatSuperScript(String possibleSuperScript) {
+        //Get the front of the string, if there exist any
+        Pattern pattern = Pattern.compile("(^[^{]*)");
+        Matcher matcher = pattern.matcher(possibleSuperScript);
+        String prefix = "";
+        if (matcher.find()) {
+            prefix = matcher.group();
+        }
+        //3 cases
+        //If y2 and y1 exist, then just base it on that
+        //If y2 does not exist, base it on prefix
+        //If y2 does not exist and prefex does not exist, return true/
+        String[] result = possibleSuperScript.split("\\{");
+        boolean first = true;
+        StringBuilder y1 = new StringBuilder();
+        StringBuilder y2 = new StringBuilder();
+
+        String possibleResult = possibleSuperScript;
+
+        //Remove formatting
+        possibleResult = possibleResult.replaceAll(".*\\{\\|\\d*(\\.)?\\d*&\\d*(\\.)?\\d*\\|}", "");
+        possibleResult = possibleResult.replaceAll("\\{\\|\\d*(\\.)?\\d*&\\d*(\\.)?\\d*\\|", "");
+
+        possibleResult = possibleResult.replaceAll("}", "").replaceAll("\\s", "");
+
+
+        if (result.length == 1) {
+            return possibleResult;
+        }
+        for(String s: result) {
+            if (s.equals(prefix)) {
+                //Ignore if it is the prefix
+                continue;
+            }
+            s = s.replaceAll("\\|\\d*(\\.)?\\d*&", "");
+            for (Character c : s.toCharArray()) {
+                if (Character.isDigit(c) || c == '.') {
+                    if (first) {
+                        y1.append(c);
+                    }
+                    else {
+                        y2.append(c);
+                    }
+
+                }
+                else break;
+            }
+            first = false;
+
+        }
+        //If there is no y2
+        if (y2.toString().isEmpty() || result.length == 3) {
+            if (prefix.length() <= 3) {
+                //If first or last char is mayus, or the last one, then it is probably an abreviation and not going to be the prefix of a citation
+                //Get the first character and last cha
+                Character firstChar = prefix.charAt(0);
+                Character lastChar = prefix.charAt(prefix.length()-1);
+
+
+                //If first or last is mayus, return false, else check lenght
+                if (Character.isUpperCase(firstChar) || Character.isUpperCase(lastChar)) {
+                    //if (y2.toString().isEmpty()) {//delete
+                        return "";
+                  //  }
+                }
+
+            }
+            if (y2.toString().isEmpty()) {
+                //If there is no y2, but prefix is valid, return result
+                return possibleResult;
+            }
+        }
+        //Y2 is higher than y1, which means that y1 is a superscript.
+        if (Float.valueOf(y2.toString()) > Float.valueOf(y1.toString())) {
+            return possibleResult;
+        }
+        else return "";
+
+
     }
 
 

@@ -1,225 +1,46 @@
-Input: 1
-File 1 name A.pdf
-File 2 name A.pdf
-
-Input: 2
-Input: 3Citations found for paper
-Found 194. Luo X, Budihardjo I, Zou H, Slaughter C and Wang X (1998
 Citations found for paper
-Found 194. Luo X, Budihardjo I, Zou H, Slaughter C and Wang X (1998
-WARNING - Could not find in-text citations for document - CASE 1
-Found CASE 2 (1999)
-Found CASE 2 (1992)
-Found CASE 2 (1992)
-Found CASE 2 (1991)
-Found CASE 2 (1996)
-Found CASE 2 (1993)
-Found CASE 2 (1999)
-Found CASE 2 (1995)
-Found CASE 2 (1996)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1996)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1995)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1994)
-Found CASE 2 (1994)
-Found CASE 2 (1996)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1995)
-Found CASE 2 (1995)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1996)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1995)
-Found CASE 2 (1996)
-Found CASE 2 (1994)
-Found CASE 2 (1999)
-Found CASE 2 (1996)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1996)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1997)
-Found CASE 2 (6676)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1994)
-Found CASE 2 (1993)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1995)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (6683)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1999)
-Found CASE 2 (1995)
-Found CASE 2 (1994)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1995)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1996)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1995)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1995)
-Found CASE 2 (1998)
-Found CASE 2 (1996)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1995)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1995)
-Found CASE 2 (1995)
-Found CASE 2 (1997)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1996)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Found CASE 2 (1999)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1997)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1998)
-Found CASE 2 (1999)
-Closing file
+No reference found
+Citations found for paper
+Found 57. Woo M, Hakem R, Soengas MS, Duncan GS, Shahinian A, Kagi D,
+• Hakem A, McCurrach M, Khoo W, Kaufman SA et al.: Essential
+contribution of caspase-3/CPP32 to apoptosis and its associated
+nuclear changes. Genes Dev 1998
+Citations found for paper
+Found 1. Steller H: Mechanisms and genes of cellular suicide. Science
+1995
+Found 15. Chicheportiche Y, Bourdon PR, Xu H, Hsu Y, Scott H, Hession C,
+Garcia I, Browning JL: TWEAK, a new secreted ligand in the TNF
+family that weakly induces apoptosis. J Biol Chem 1997
+Found 27. Walczak H, Degli-Esposti MA, Johnson RS, Smolak PJ, Waugh JY,
+Boiani N , Timour MS, Gerhart MJ, Schooley KA, Smith CA et al.:
+TRAIL-R2: a novel apoptosis-mediating receptor for TRAIL.
+EMBO J 1997
+Found 31. Degli-Esposti M, Smolak PJ, Walczak H, Waugh J, Huang CP,
+Dubose RF, Goodwin RG, Smith CA: Cloning and characterization
+of TRAIL-R3, a novel member of the emerging TRAIL receptor
+family. J Exp Med 1997
+Found 42. Enari M, Sakahira H, Yokoyama H, Okawa K, Iwamatsu A, Nagata S: A
+caspase-activated DNase that degrades DNA during apoptosis,
+and its inhibitor ICAD. Nature 1998
+Found 43. Sakahira H, Enari M, Nagata S: Cleavage of CAD inhibitor in CAD
+activation and DNA degradation during apoptosis. Nature 1998
+Found 44. Liu X, Zou H, Slaughter C, Wang X: DFF, a heterodimeric protein
+that functions downstream of caspase-3 to trigger DNA
+fragmentation during apoptosis. Cell 1997
+Found 50. Nishitoh H, Saitoh M, Mochida Y, Takeda K, Nakano H, Rothe M,
+Miyazono K, Ichijo H: ASK1 is essential for JNK/SAPK activation by
+TRAF2. Mol Cell 1998
+Found 60. Luo X, Budihardjo I, Zou H, Slaughter C, Wang X: Bid, a Bcl2
+interacting protein, mediates cytochrome C release from
+mitochondria in response to activation of cell surface death
+receptors. Cell 1998
+Found 61. Li H, Zhu H, Xu CJ, Yuan J: Cleavage of BID by caspase 8 mediates
+the mitochondrial damage in the Fas pathway of apoptosis. Cell
+1998
+Found 63. Yoshida H, Kong YY, Yoshida R, Elia AJ, Hakem A, Hakem R, Penninger
+JM, Mak TW: Apaf1 is required for mitochondrial pathways of
+apoptosis and brain development. Cell 1998
+Found 64. Kuida K, Haydar TF, Kuan CY, Gu Y, Taya C, Karasuyama H, Su MS,
+Rakic P, Flavell RA: Reduced apoptosis and cytochrome c-mediated
+caspase activation in mice lacking caspase 9. Cell 1998
+There is a tie
