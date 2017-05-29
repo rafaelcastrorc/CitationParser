@@ -8,11 +8,14 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
 
+import javax.print.Doc;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 
 /**
@@ -21,17 +24,18 @@ import java.util.regex.Pattern;
  */
 class DocumentParser {
     private final Logger log;
-    private PDFParser parser;
-    private PDFTextStripper pdfStripper;
     private COSDocument cosDoc;
     private PDDocument pdDoc;
     private String parsedText = "";
     private String formattedParsedText = "";
     float largestFont;
     float smallestFont;
-    HashMap<Float, Integer> fontSizes;
+    private HashMap<Float, Integer> fontSizes;
     private File file;
-    private float textBodySize;
+    float textBodySize;
+    private String possibleAuthorsNames;
+    float titleFontSize;
+
 
 
     /**
@@ -43,13 +47,15 @@ class DocumentParser {
      * @throws IOException - If there is an error reading the file
      */
     DocumentParser(File fileToParse, boolean parseEntireDoc, boolean getFormat) throws IOException {
+        java.util.logging.Logger.getLogger("org.apache.pdfbox").setLevel(Level.SEVERE);
+
         this.file = fileToParse;
         this.log = Logger.getInstance();
-        this.pdfStripper = null;
+        PDFTextStripper pdfStripper = null;
         if (!fileToParse.exists() || !fileToParse.canRead() ) {
             throw new IOException("ERROR: File does not exist");
         }
-        parser = new PDFParser(new RandomAccessBufferedFileInputStream(fileToParse));
+        PDFParser parser = new PDFParser(new RandomAccessBufferedFileInputStream(fileToParse));
         parser.parse();
         cosDoc = parser.getDocument();
 
@@ -62,6 +68,8 @@ class DocumentParser {
             pdfStripper = new PDFTextStripper() {
                 //Modifies the way the text is parsed by including font size
                 float prevFontSize = 0;
+                String prevFont = "";
+
 
                 protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
 
@@ -69,11 +77,29 @@ class DocumentParser {
 
                     for (TextPosition position : textPositions) {
                         float baseSize = position.getFontSizeInPt();
+                        String baseFont = "";
 
-                        if (baseSize != prevFontSize) {
-                            //Format {|textSize&yPosition|}
-                            builder.append("{|").append(baseSize).append("&").append(position.getYDirAdj()).append("|}");
+                        boolean isDifferentFontSize = baseSize != prevFontSize;
+                        boolean isDifferentFont = isDifferentFontSize;
+                        if (!parseEntireDoc) {
+                            //If we are getting the title, we need to consider the fonts
+                            baseFont = position.getFont().getName();
+                            isDifferentFont = !baseFont.equals(prevFont);
+                        }
+
+
+
+                        if ( isDifferentFontSize || isDifferentFont) {
+                            if (!parseEntireDoc) {
+                                builder.append("{|").append(baseSize).append("&").append(baseFont).append("&").append(position.getYDirAdj()).append("|}");
+                            }
+                            else {
+                                //Format {|textSize&yPosition|}
+                                builder.append("{|").append(baseSize).append("&").append(position.getYDirAdj()).append("|}");
+                            }
                             prevFontSize = baseSize;
+                            prevFont = baseFont;
+
                             if (smallestFont > baseSize) {
                                 smallestFont = baseSize;
                             }
@@ -110,7 +136,7 @@ class DocumentParser {
             this.parsedText = pdfStripper.getText(pdDoc);
         }
 
-        //getText(getFormat); //delete
+       // getText(getFormat); //delete
 
     }
 
@@ -142,7 +168,7 @@ class DocumentParser {
      * @param authors     - authors of a given twin paper.
      * @return string with the reference used in the paper. Starts with author name and finishes with the year the paper was published.
      */
-    String getReference(String authorRegex, String authors) {
+    String getReference(String authorRegex, String authors) throws IllegalArgumentException {
         //Pattern use to capture the citation. Starts with the author name and ends with the year the paper was published.
         String patternCase1 = "[^.\n]*(\\d+(\\.( ).*))*(" + authorRegex + ")([^;)])*?((\\b((18|19|20)\\d{2}( )?([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
         Pattern pattern1 = Pattern.compile(patternCase1);
@@ -170,13 +196,13 @@ class DocumentParser {
     }
 
     /**
-     * Uses Levenshtein Distance to solve reference ties by using the names to find the most similar citation
+     * Uses Levenshtein Distance to solve reference ties by using the names to find the most similar reference
      *
      * @param result  - list with all the possible references
      * @param authors - names of the authors of a given twin paper
      * @return arrayList with one element, which is the correct reference.
      */
-    private ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
+     ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) throws IllegalArgumentException {
         ArrayList<String> newResult = new ArrayList<>();
         int smallest = Integer.MAX_VALUE;
 
@@ -187,9 +213,9 @@ class DocumentParser {
                 log.writeToLogFile("ERROR: There was an error solving the tie");
                 log.newLine();
                 //Ties should not happen so throw an error
-                System.out.print("Error coming from getting the reference");
-                System.err.println("ERROR: THERE WAS AN ERROR FINDING THE CITATION IN THIS PAPER, PLEASE INCLUDE MORE THAN 3 AUTHORS' NAMES FOR EACH OF THE TWIN PAPERS" +
+                throw new IllegalArgumentException("ERROR: THERE WAS AN ERROR FINDING THE CITATION IN THIS PAPER, PLEASE INCLUDE MORE THAN 3 AUTHORS' NAMES FOR EACH OF THE TWIN PAPERS" +
                         "\nIf the error persist, please inform the developer.");
+
             }
             if (newDistance < smallest) {
                 smallest = newDistance;
@@ -242,7 +268,11 @@ class DocumentParser {
                 String answer = matcher2.group();
                 log.writeToLogFile("Found CASE 2 " + answer);
                 log.newLine();
-                result2.add(answer);
+                Pattern validCitationCase2 = Pattern.compile("[^(0-9) ]");
+                Matcher validation = validCitationCase2.matcher(answer);
+                if (validation.find()){
+                    result2.add(answer);
+                }
 
             }
 
@@ -292,7 +322,7 @@ class DocumentParser {
      * @param citationWithDash - citation that contains the dash
      * @return string with the citation formatted correctly
      */
-    private String inTextCitationContainsDash(String citationWithDash) {
+     String inTextCitationContainsDash(String citationWithDash) {
         int counter = 0;
         ArrayList<String> newAnswer = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
@@ -345,6 +375,7 @@ class DocumentParser {
             }
             counter2++;
         }
+        citationWithDash= citationWithDash.replaceAll("^\\s+", "");
         return citationWithDash;
     }
 
@@ -367,25 +398,108 @@ class DocumentParser {
     }
 
 
+    /**
+     * Gets the title based on a text-analysis of the first page, by finding the string with the largest font that has more than 3 characters
+     * @return String with the title of the document
+     */
     String getTitle() {
-        String pattern = "(\\{\\|" + largestFont + ")([^{])*";
-        Pattern pattern1 = Pattern.compile(pattern);
-        Matcher matcher = pattern1.matcher(formattedParsedText);
         String result = "";
-        if (matcher.find()) {
-            result = matcher.group();
+        //While the title is less than 3 chars, continue looping until find the right title
+        TreeMap<Float, Integer> orderedFonts = new TreeMap<>(Collections.reverseOrder());
+        this.possibleAuthorsNames = "";
+        for (float fontSize : fontSizes.keySet()) {
+            orderedFonts.put(fontSize, fontSizes.get(fontSize));
         }
-        if (result.isEmpty()) {
-            return "No title found";
+        float titleFont = largestFont;
+        while (result.length() < 3) {
+            String pattern = "(\\{\\|" + titleFont + ")([^{])*";
+            this.titleFontSize = titleFont;
+            Pattern pattern1 = Pattern.compile(pattern);
+            Matcher matcher = pattern1.matcher(formattedParsedText);
+            if (matcher.find()) {
+                result = matcher.group();
+                Pattern patternForAuthorsNames = Pattern.compile(pattern + "\\{\\|\\d*(\\.)?\\d*&[^}]*}[^{]*\\{\\|\\d*(\\.)?\\d*(\\.)?\\d*&[^}]*}[^{]*");
+                Matcher matcherForAuthor = patternForAuthorsNames.matcher(formattedParsedText);
+                if (matcherForAuthor.find()) {
+                    possibleAuthorsNames = matcherForAuthor.group();
+                }
+            }
+            if (result.isEmpty()) {
+                return "No title found";
+            }
+
+            result = result.replaceAll("(\\{\\|\\d*(\\.)?\\d*&[^|}]*\\|})", " ");
+            result = result.replace("\n", " ").replace("\r", " ");
+            result = result.replaceAll("^[ \\t]+|[ \\t]+$", "");
+
+            orderedFonts.remove(orderedFonts.firstKey());
+            titleFont = orderedFonts.firstKey();
         }
-        result = result.replaceAll("(\\{\\|)(\\d)*([^A-z])*", " ");
-        result = result.replace("\n", " ").replace("\r", " ");
-        result = result.replaceAll("^\\s+", "");
+
         return result;
     }
 
+    String getAuthors() throws IOException {
+        //Authors are normally right under the title of the paper, so find a y2 > y1, where y1 = title y position, and whose font >= text body size and has mroe than 3 chars
 
-    private ArrayList<String> getInTextCitationsCase1(String superScriptSize) {
+        if (possibleAuthorsNames.isEmpty()) {
+            return "No authors found";
+        }
+        //The index 1 and 2 contain the two possible author strings.
+        String[] result = possibleAuthorsNames.split("\\{");
+
+        for (int i= result.length - 2; i < result.length; i++) {
+            possibleAuthorsNames = result[i];
+
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll("\\|\\d*(\\.)?\\d*&[^}]*}", "");
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll("[\\n\\r]", "");
+
+            //Remove any special characters
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-0-9.,]", "");
+            //Remove any leading or trailing space
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll("^[ \\t]+|[ \\t]+$", "");
+            //Remove trailing comma because it can produce errors and make sure that the string is not too long
+            //count number of spaces. Needs to be more than one author
+            String[] numOfSpaces = possibleAuthorsNames.split("\\s");
+            if (numOfSpaces.length < 15 && numOfSpaces.length > 2) {
+                if (possibleAuthorsNames.endsWith(",")) {
+                    return possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
+                } else {
+                    return possibleAuthorsNames;
+
+                }
+            }
+            //Try to find more than one author, if not just return original
+            if (numOfSpaces.length <=2) {
+                 DocumentParser dp = new DocumentParser(file, false, false);
+                 Pattern authorsPattern = Pattern.compile("Xu Luo(.*)?");
+                 Matcher matcher2 = authorsPattern.matcher(dp.parsedText);
+                 if (matcher2.find()) {
+                     possibleAuthorsNames = matcher2.group();
+                     //Format correctly
+                     possibleAuthorsNames = possibleAuthorsNames.replaceAll("[\\n\\r]", "");
+                     possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-0-9.,]", "");
+                     possibleAuthorsNames = possibleAuthorsNames.replaceAll("^[ \\t]+|[ \\t]+$", "");
+                     dp.close();
+                     if (possibleAuthorsNames.endsWith(",")) {
+                         return possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
+                     } else {
+                         return possibleAuthorsNames;
+                     }
+
+                 }
+                 else return possibleAuthorsNames;
+            }
+
+
+
+        }
+        return "No authors found";
+    }
+
+
+
+     ArrayList<String> getInTextCitationsCase1(String superScriptSize) {
         ArrayList<String> result = new ArrayList<>();
         Matcher matcher;
 
@@ -436,14 +550,32 @@ class DocumentParser {
     //If it is a superscript citation, that is text^citation rather than text_number, the y position after the citation has to bee
     //larger. Ex: {|fontSizePossCitation&Y1|}5{|fontSizeNormalText&Y2|} bla bla bla.
     // If Y2>Y1, text is citation, if not, ignore.
-    private String getSuperScriptSize(HashMap<Float, Integer> fontSizes, float smallestFont) {
-        TreeMap<Integer, Float> frequencies = new TreeMap<>(Collections.reverseOrder());
+
+    /**
+     * Based on the number of times each font is used, get all the possible font sizes that could be used to write superscripts.
+     * This method also computes the body size of the text, by assuming that it is the most frequent text size, and that it is >=7.0
+     * It also assumes that the superscript size is less than 7.0
+     * @param fontSizes map from font size to number of times it is used.
+     * @param smallestFont smallest font size in the entire text
+     * @return string with all the possible font sizes that could be used to write superscripts.
+     */
+    String getSuperScriptSize(HashMap<Float, Integer> fontSizes, float smallestFont) {
+        TreeMap<Integer, List<Float>> frequencies = new TreeMap<>(Collections.reverseOrder());
         StringBuilder superScriptSize = new StringBuilder();
 
-        //Order the frequencies in descending order
+        //Order the frequencies in descending order. Map<Number of times used, Size of font>
         for (float size : fontSizes.keySet()) {
             int numberOfTimes = fontSizes.get(size);
-            frequencies.put(numberOfTimes, size);
+            if (frequencies.get(numberOfTimes) == null) {
+                ArrayList<Float> sizesList = new ArrayList<>();
+                sizesList.add(size);
+                frequencies.put(numberOfTimes, sizesList);
+            }
+            else {
+                List<Float> sizesList = frequencies.get(numberOfTimes);
+                sizesList.add(size);
+                frequencies.put(numberOfTimes, sizesList);
+            }
         }
         textBodySize = Float.POSITIVE_INFINITY;
 
@@ -451,12 +583,17 @@ class DocumentParser {
         boolean found = false;
         for (int numberOfTimesUSed : frequencies.keySet()) {
             //Normally textbody size is greater than 7
-            if (first && frequencies.get(numberOfTimesUSed) >= 7.0) {
-                textBodySize = frequencies.get(numberOfTimesUSed);
-                first = false;
-            } else {
+            if (first) {
+                for (float size : frequencies.get(numberOfTimesUSed)) {
+                    if (size >= 7.0) {
+                        textBodySize = size;
+                        first = false;
+                    }
+                }
 
-                    float curr = frequencies.get(numberOfTimesUSed);
+            }
+            for (float size : frequencies.get(numberOfTimesUSed)) {
+                    float curr = size;
 
                     if (numberOfTimesUSed < 50) {
                         //If it happens less than 50 times, we have already considered everything we needed so we break
@@ -467,30 +604,28 @@ class DocumentParser {
                     //-It is smaller than the text body size
                     //-It is smaller than 7.0
                     //-It was used at least 50 times
-                    if (smallestFont <= curr && curr < textBodySize && curr < 7.0 && numberOfTimesUSed > 50) {
+                    if (smallestFont <= curr && curr < textBodySize && curr < 7.0 && numberOfTimesUSed >= 50) {
                         if (!found) {
                             superScriptSize.append(curr);
                             found = true;
-                        }
-                        else {
+                        } else {
                             superScriptSize.append("|").append(curr);
 
                         }
                     }
 
 
-            }
+                }
+
 
 
         }
-        System.out.println("The body text size should be " + textBodySize); //delete
-        System.out.println("The superscript text size should be " + superScriptSize); //delete
 
         return superScriptSize.toString();
     }
 
     //Makes sure that is a valid superscript. If y2 > y1, then is valid. If empty, ignore, if no y2, then check character before.
-    private String formatSuperScript(String possibleSuperScript) {
+     String formatSuperScript(String possibleSuperScript) {
         //Get the front of the string, if there exist any
         Pattern pattern = Pattern.compile("(^[^{]*)");
         Matcher matcher = pattern.matcher(possibleSuperScript);

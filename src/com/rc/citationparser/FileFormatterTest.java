@@ -34,32 +34,32 @@ class FileFormatterTest {
 
 
     @Test
-    void setFile() throws IOException {
+    void testSetFile() throws IOException {
         createEmptyFile();
         FileFormatter.setFile(new File("./testingFiles/Test1.pdf"));
         assertEquals(new File("./testingFiles/Test1.pdf"), FileFormatter.file);
     }
 
     @Test
-    void addAuthors() {
+    void testAddAuthors() {
         FileFormatter.addAuthors("Rafael Castro.");
         assertEquals("Rafael Castro.", FileFormatter.getAuthors());
     }
 
     @Test
-    void addTitle() {
+    void testAddTitle() {
         FileFormatter.addTitle("Testing Document.");
         assertEquals("Testing Document.", FileFormatter.getTitle());
     }
 
     @Test
-    void getCurrentInfo() {
+    void testGetCurrentInfo() {
        assertEquals("The title of the paper: Testing Document.\nThe authors: Rafael Castro.",
                FileFormatter.getCurrentInfo());
     }
 
     @Test
-    void closeFile() {
+    void testCloseFile() {
         try {
             FileFormatter.closeFile();
         } catch (IOException e) {

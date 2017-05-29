@@ -106,7 +106,12 @@ class Controller {
                         //Get a regex with all possible name combinations of the authors
                         String RegexReadyTwin1 = generateReferenceRegex(authorsNamesTwin1, true);
                         //Gets the citation for twin1 found in this paper
-                        String citationTwin1 = parser.getReference(RegexReadyTwin1, authorsNamesTwin1);
+                        String citationTwin1 = "";
+                        try {
+                            citationTwin1 = parser.getReference(RegexReadyTwin1, authorsNamesTwin1);
+                        } catch (IllegalArgumentException e) {
+                            cView.displayErrorToScreen(e.getMessage());
+                        }
                         FileFormatter.closeFile();
 
 
@@ -115,10 +120,15 @@ class Controller {
                         FileFormatter.setFile(twinFile2);
                         String authorsNamesTwin2 = FileFormatter.getAuthors();
                         String RegexReadyTwin2 = generateReferenceRegex(authorsNamesTwin2, true);
-                        String citationTwin2 = parser.getReference(RegexReadyTwin2, authorsNamesTwin2);
+                        String citationTwin2 = "";
+                        try {
+                            citationTwin2 = parser.getReference(RegexReadyTwin2, authorsNamesTwin2);
+                        } catch (IllegalArgumentException e) {
+                            cView.displayErrorToScreen(e.getMessage());
+                        }
                         FileFormatter.closeFile();
 
-                        System.out.println(citationTwin1);
+                        System.out.println(citationTwin1); //delete
                         System.out.println(citationTwin2);
 
 
@@ -289,7 +299,7 @@ class Controller {
 
 
                     } catch (IOException e) {
-                        cView.displayErrorToScreen("There was an error parsing document " + curr.getName());
+                        cView.displayErrorToScreen("ERROR: There was an error parsing document " + curr.getName());
                     }
                 }
             }
@@ -539,13 +549,13 @@ class Controller {
                     cView.displayErrorToScreen("There was an error parsing the file");
                 }
 
-                System.out.println("-------------TESTING - THIS FEATURE IS NOT YET FULLY WORKING--------------");
+                System.out.println("-------------EXPERIMENTAL--------------");
                 System.out.println(documentParser.smallestFont);
                 System.out.println(documentParser.largestFont);
                 String possTitle = documentParser.getTitle();
                 boolean end = false;
                 while (!end) {
-                    cView.displayToScreen("Is this title of the document:\n" + possTitle + "?");
+                    cView.displayToScreen("Is this title of the document:\n" + possTitle);
                     cView.displayToScreen("Press Y to save this as the title, press N to manually input the name");
                     String ans = cView.getInput();
 
@@ -559,6 +569,32 @@ class Controller {
                         choice = 3;
                     }
                 }
+
+                end = false;
+                String possAuthors = "";
+                try {
+                    possAuthors = documentParser.getAuthors();
+                } catch (IOException e) {
+                    cView.displayErrorToScreen(e.getMessage());
+                }
+                while (!end) {
+                    cView.displayToScreen("Are these the authors of the document:\n" + possAuthors);
+                    cView.displayToScreen("Press Y to save this as the authors names, press N to manually input the names");
+                    String ans = cView.getInput();
+
+                    if (ans.equals("Y") || ans.equals("y")) {
+                        FileFormatter.addAuthors(possAuthors);
+                        end = true;
+                        valid = true;
+                    }
+                    else {
+                        end = true;
+                        choice = 3;
+                    }
+                }
+
+
+
                 documentParser.close();
 
             }
