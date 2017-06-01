@@ -12,15 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
  * Created by rafaelcastro on 5/27/17.
  * Test cases for DocumentParser class
  * For testing purposes:
- *  Test2.pdf = numerical references with in-text citations numbered formatted between []
- *  Test3.pdf = numerical references with in-text citations numbered formatted as superscript
- *  Test4.pdf = references without numbers with in text citations between parenthesis
+ * Test2.pdf = numerical references with in-text citations numbered formatted between [] - 1.pdf
+ * Test3.pdf = numerical references with in-text citations numbered formatted as superscript - 3.pdf
+ * Test4.pdf = references without numbers with in text citations between parenthesis - 2.pdf
+ * Test5.pdf = references without numbers with in text citations between parenthesis - 4.pdf
+ * Test6.pdf = numerical references with in-text citations numbered formatted between [] - 5.pdf
+ * Test7.pdf = references without numbers with in text citations between parenthesis. Very old pdf - 7.pdf
+
  */
 class DocumentParserTest {
 
     private com.rc.citationparser.DocumentParser documentParser;
     private Controller controller = new Controller(null, false);
-
 
 
     @org.junit.jupiter.api.Test
@@ -75,11 +78,21 @@ class DocumentParserTest {
                 "Tschopp J (1998", result);
         documentParser.close();
 
+        file = new File("./testingFiles/Test6.pdf");
+        documentParser = new DocumentParser(file, true, false);
+        author = "Karbownik M, Tan D, Manchester LC, Reiter RJ.";
+        authorRegex = controller.generateReferenceRegex(author, true);
+        result = documentParser.getReference(authorRegex, author);
+        assertEquals("80. Karbownik M, Tan D, Manchester LC, Reiter RJ. Renal\n" +
+                "toxicity of the carcinogen delta-aminolevulinic acid: anti-\n" +
+                "oxidant effects of melatonin. Cancer Lett 2000", result);
+        documentParser.close();
+
 
     }
 
     @org.junit.jupiter.api.Test
-    void testGetReferenceNonNumerical() {
+    void testGetReferenceNonNumerical() throws IOException {
         //Get the reference and include the number
         File file = new File("./testingFiles/Test4.pdf");
         try {
@@ -94,16 +107,52 @@ class DocumentParserTest {
         assertEquals("Li, P., D. Nijhawan, I. Budihardjo, S.M. Srinivasula, M. Ahmad, E.S. Alnemri,\n" +
                 "and X. Wang. 1997", result);
 
-       //Year contains lettter
+        //Year contains lettter
         author = "Kluck R.M., E. Bossy-Wetzel, D.R. Green";
         authorRegex = controller.generateReferenceRegex(author, true);
         result = documentParser.getReference(authorRegex, author);
         assertEquals("Kluck, R.M., E. Bossy-Wetzel, D.R. Green, and D.D. Newmeyer. 1997a", result);
         documentParser.close();
+
+
+        file = new File("./testingFiles/Test5.pdf");
+        try {
+            documentParser = new DocumentParser(file, true, false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        author = "Zou, H., Henzel, W.J., Liu, X., Lutschg, A., and Wang, X.";
+        authorRegex = controller.generateReferenceRegex(author, true);
+        result = documentParser.getReference(authorRegex, author);
+        assertEquals("Zou, H., Henzel, W.J., Liu, X., Lutschg, A., and Wang, X. (1997", result);
+
+        //Liu appears three times
+        author = "Liu, Zou, Slaughter, Wang";
+        authorRegex = controller.generateReferenceRegex(author, true);
+        result = documentParser.getReference(authorRegex, author);
+        assertEquals("). Bcl-2 hetero-Liu, X., Zou, H., Slaughter, C., and Wang, X. (1997", result);
+        documentParser.close();
+
+
+
+        file = new File("./testingFiles/Test7.pdf");
+        try {
+            documentParser = new DocumentParser(file, true, false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //Kerr appears 4 times, each with different years but is the only author
+        author = "KERR J. F. R., 1969";
+        authorRegex = controller.generateReferenceRegex(author, true);
+        result = documentParser.getReference(authorRegex, author);
+        assertEquals("KERR, J. F. R. (1969", result);
+        documentParser.close();
+
+
     }
 
     @org.junit.jupiter.api.Test
-    void testGetInTextCitationsNumeric() {
+    void testGetInTextCitationsNumeric() throws IOException {
         //Get the in-text citations when they are expressed as numbers between []
         File file = new File("./testingFiles/Test2.pdf");
         try {
@@ -131,7 +180,7 @@ class DocumentParserTest {
     }
 
     @org.junit.jupiter.api.Test
-    void testGetInTextCitationsNumericSuperScript() {
+    void testGetInTextCitationsNumericSuperScript() throws IOException {
         //Get the in-text citations when they are expressed as numbers between []
         File file = new File("./testingFiles/Test3.pdf");
         try {
@@ -141,7 +190,6 @@ class DocumentParserTest {
         }
         ArrayList<String> result = documentParser.getInTextCitations(true);
         assertEquals(110, result.size());
-        System.out.println(result);
         //Simple
         assertTrue(result.contains("3"));
         assertTrue(result.contains("28"));
@@ -166,7 +214,7 @@ class DocumentParserTest {
     }
 
     @org.junit.jupiter.api.Test
-    void testSolveReferenceTies() {
+    void testSolveReferenceTies() throws IOException {
         File file = new File("./testingFiles/Test1.pdf");
         try {
             documentParser = new DocumentParser(file, true, false);
@@ -196,7 +244,7 @@ class DocumentParserTest {
 
 
     @org.junit.jupiter.api.Test
-    void testInTextCitationContainsDash() {
+    void testInTextCitationContainsDash() throws IOException {
         //The method prints white space at beginning of string.
         File file = new File("./testingFiles/Test1.pdf");
         try {
@@ -214,7 +262,7 @@ class DocumentParserTest {
     }
 
     @org.junit.jupiter.api.Test
-    void getInTextCitationsBetweenParenthesis() {
+    void getInTextCitationsBetweenParenthesis() throws IOException {
         //Get the in-text citations when they are expressed as numbers between []
         File file = new File("./testingFiles/Test4.pdf");
         try {
@@ -222,8 +270,11 @@ class DocumentParserTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        ArrayList<String> result = documentParser.getInTextCitations(true);
-        assertEquals(49, result.size());
+        ArrayList<String> result = documentParser.getInTextCitations(false);
+
+
+
+        assertEquals(71, result.size());
         assertTrue(result.contains("(cys-\n" +
                 "teine aspartate–specific proteases) as the molecu-\n" +
                 "lar instigators of apoptosis (Yuan et al., 1993;\n" +
@@ -242,12 +293,55 @@ class DocumentParserTest {
                 "S.J. Martin, data not shown)"));
         documentParser.close();
 
+
+        file = new File("./testingFiles/Test5.pdf");
+        try {
+            documentParser = new DocumentParser(file, true, false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        result = documentParser.getInTextCitations(false);
+        for (String s : result) {
+            System.out.println(s);
+
+        }
+
+        assertEquals(132, result.size());
+        assertTrue(!result.contains("1999)"));
+        assertTrue(result.contains("(Esposti et al., 2001)"));
+        assertTrue(result.contains("(Li et al., 1998; Luo et al., 1998)"));
+
+        documentParser.close();
+
+        file = new File("./testingFiles/Test7.pdf");
+        try {
+            documentParser = new DocumentParser(file, true, false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        result = documentParser.getInTextCitations(true);
+        assertEquals(79, result.size());
+        for (String s : result) {
+            System.out.println(s);
+
+        }
+        assertFalse(result.contains("(1972b)"));
+        assertTrue(result.contains("(Iversen, 1967; Refsum and Berdal,\n" +
+                "1967; Steel, 1967; Frindel, Malaise and\n" +
+                "Tubiana, 1968; Laird, 1969; Clifton and\n" +
+                "Yatvin, 1970; Weinstein and Frost, 1970;\n" +
+                "Lala, 1971, 1972)"));
+        assertTrue(result.contains("(Fig. 20 and 23; Currie\n" +
+                "et al., 1972; Kerr and Searle, 1972a and\n" +
+                "b)"));
+
+        documentParser.close();
+
     }
 
 
-
     @org.junit.jupiter.api.Test
-    void testGetTitle() {
+    void testGetTitle() throws IOException {
         //Gets the title, based on analysis of text and font size
 
         //Case 1: Document has no text
@@ -311,6 +405,18 @@ class DocumentParserTest {
         answer = documentParser.getTitle();
         documentParser.close();
         assertEquals("Caspase structure, proteolytic substrates, and function during apoptotic cell death", answer);
+
+        //Testing file 7.pdf
+        file = new File("./testingFiles/Test6.pdf");
+        try {
+            //Does not need to parse the entire doc and needs format
+            documentParser = new DocumentParser(file, false, true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        answer = documentParser.getTitle();
+        documentParser.close();
+        assertEquals("Melatonin mitigates mitochondrial malfunction", answer);
 
     }
 
@@ -404,21 +510,11 @@ class DocumentParserTest {
 
 
     @org.junit.jupiter.api.Test
-    void testGetInTextCitationsCase1() {
-    }
-
-
-    @org.junit.jupiter.api.Test
-    void testGetInTextCitationsCase2() {
-    }
-
-
-    @org.junit.jupiter.api.Test
     void testGetSuperScriptSize() {
         File file = new File("./testingFiles/Test1.pdf");
         try {
             //Does not need to parse the entire doc and needs format
-            documentParser = new DocumentParser(file, false, true);
+            documentParser = new DocumentParser(file, true, true);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -466,6 +562,63 @@ class DocumentParserTest {
 
     @org.junit.jupiter.api.Test
     void testFormatSuperScript() {
+        File file = new File("./testingFiles/Test1.pdf");
+        try {
+            //Does not need to parse the entire doc and needs format
+            documentParser = new DocumentParser(file, true, false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //Case with no text
+        String answer = documentParser.formatSuperScript("");
+        assertEquals("", answer);
+
+        //Case where there is only y1 and prefix
+        answer = documentParser.formatSuperScript(".{|6.0&10.0|}1234");
+        assertEquals("1234", answer);
+
+        answer = documentParser.formatSuperScript(" {|6.0&10.0|}1234");
+        assertEquals("1234", answer);
+
+        answer = documentParser.formatSuperScript("hajh{|6.0&10.0|}1234");
+        assertEquals("1234", answer);
+
+        answer = documentParser.formatSuperScript("haj{|6.0&10.0|}1234");
+        assertEquals("1234", answer);
+
+        answer = documentParser.formatSuperScript("H20{|6.0&10.0|}1234");
+        assertEquals("", answer);
+
+        answer = documentParser.formatSuperScript("HmL{|6.0&10.0|}1234");
+        assertEquals("", answer);
+
+
+        //Case where y1 < y2
+        answer = documentParser.formatSuperScript(".{|6.0&10.0|}1234{|8.0&12.0|");
+        assertEquals("1234", answer);
+
+        //Case where  y2 > y1
+        answer = documentParser.formatSuperScript("{|6.0&24.0|}1234{|8.0&12.0|");
+        assertEquals("", answer);
+
+        //Case where  y1 = y2
+        answer = documentParser.formatSuperScript("{|6.0&10.0|}1234{|8.0&10.0|");
+        assertEquals("", answer);
+
+
+        //Case where  y1 = y2
+        documentParser.formatSuperScript("");
+
+        //Case where there is no y2 or prefix
+        documentParser.formatSuperScript("");
+
+    }
+
+
+
+    @org.junit.jupiter.api.Test
+    void testGetYear() {
+        fail("Not yet implemented");
     }
 
 

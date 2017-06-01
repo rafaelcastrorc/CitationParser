@@ -1,3 +1,0 @@
-Input: 1
-File 1 name C.pdf
-Closing file

@@ -8,7 +8,6 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
 
-import javax.print.Doc;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -26,7 +25,7 @@ class DocumentParser {
     private final Logger log;
     private COSDocument cosDoc;
     private PDDocument pdDoc;
-    private String parsedText = "";
+    String parsedText = "";
     private String formattedParsedText = "";
     float largestFont;
     float smallestFont;
@@ -226,13 +225,12 @@ class DocumentParser {
     }
 
     /**
-     * Gets all the in-text citation of a given pdf document.
-     *
+     * Gets all the in-text citation of a given pdf document
      * @param areRefNumbered - are the references numbered in the bibliography.
      *                       Ex. 1. Ellis, John ... 2010.
      * @return ArrayList with all the citations
      */
-    ArrayList<String> getInTextCitations(boolean areRefNumbered) {
+    ArrayList<String> getInTextCitations(boolean areRefNumbered) throws IOException {
         //Case 1: For the case where in-text citations are displayed as numbers
         //Ex: [1] or [4,5] or [4,5•] or [4•] or [4-20]
         ArrayList<String> result1 = getInTextCitationsCase1("");
@@ -244,9 +242,7 @@ class DocumentParser {
             try {
                 parsedDoc = new DocumentParser(file, true, true);
             } catch (IOException e) {
-
-                System.err.println("There was an error parsing the file");
-                return new ArrayList<>();
+                throw new IOException("There was an error parsing the file "+file.getName());
             }
             this.formattedParsedText = parsedDoc.formattedParsedText;
             String superScriptSize = getSuperScriptSize(parsedDoc.fontSizes, parsedDoc.smallestFont);
@@ -256,19 +252,21 @@ class DocumentParser {
         }
 
 
+        //If less than 50 intext citations where found for case 1, then try doing case 2.
         if (result1.size() < 50) {
             ArrayList<String> result2 = new ArrayList<>();
-            String patternCase2 = "\\(\\D*(unpublished data|data not shown|\\d{4})([a-zA-Z](,[a-zA-Z])*)*(, (unpublished data|data not shown|\\d{4}))*(;\\D*\\d{4}([a-zA-Z](,[a-zA-Z])*)*)*\\)";
+            String patternCase2 = "\\(\\D*(unpublished data|data not shown|\\d{4})([a-zA-Z]((,| and)( )?[a-zA-Z])*)*((,| and)( |\\n)(unpublished data|data not shown|\\d{4}([a-zA-Z]((,| and)( )?[a-zA-Z])*)*))*(;\\D*\\d{4}([a-zA-Z]((,| and)( )?[a-zA-Z])*)*((,| and) (unpublished data|data not shown|\\d{4}))*)*\\)";
+            patternCase2 = "\\(\\D*(unpublished data|Fig\\. ([0-9-]*(\\n| |;( |\\n)\\D*)(and \\d*)*)*|data not shown|\\d{4})([a-zA-Z]((,|(( |\\n)and))( |\\n)?[a-zA-Z])*)*((,|( |\\n)and)( |\\n)(unpublished data|data not shown|\\d{4}(\\n)?([a-zA-Z]((,|(( |\\n)and))( |\\n)?[a-zA-Z])*)*))*(;\\D*\\d{4}([a-zA-Z]((,|(( |\\n)and))( |\\n)?[a-zA-Z])*)*((,|(( |\\n)and))( |\\n)(unpublished data|data not shown|\\d{4}))*)*\\)";
             Pattern pattern2 = Pattern.compile(patternCase2);
             Matcher matcher2 = pattern2.matcher(parsedText);
 
 
-            System.out.println();
             while (matcher2.find()) {
                 String answer = matcher2.group();
                 log.writeToLogFile("Found CASE 2 " + answer);
                 log.newLine();
-                Pattern validCitationCase2 = Pattern.compile("[^(0-9) ]");
+                //Make sure that answer is not only the year (2010) or year and letter (2010a)
+                Pattern validCitationCase2 = Pattern.compile("[^(0-9) ][A-z]");
                 Matcher validation = validCitationCase2.matcher(answer);
                 if (validation.find()){
                     result2.add(answer);
@@ -277,7 +275,6 @@ class DocumentParser {
             }
 
             if (result2.isEmpty()) {
-                System.out.println("WARNING - Could not find in-text citations for document - CASE 2");//delete
                 log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 2");
                 log.newLine();
             }
@@ -301,15 +298,6 @@ class DocumentParser {
 
             }
         }
-
-
-//        //Todo: fix case two year only problem (1998)
-//        (1998)
-//        (1998)
-//        (1998)
-//        (1998)
-//        (1997)
-//        (1998)
         return result1;
     }
 
@@ -367,15 +355,17 @@ class DocumentParser {
         }
         citationWithDash = " ";
         int counter2 = 0;
-        for (String s : newAnswer) {
+         StringBuilder citationWithDashBuilder = new StringBuilder(citationWithDash);
+         for (String s : newAnswer) {
             if (counter2 > 0) {
-                citationWithDash = citationWithDash + ',' + s;
+                citationWithDashBuilder.append(',').append(s);
             } else {
-                citationWithDash = citationWithDash + s;
+                citationWithDashBuilder.append(s);
             }
             counter2++;
         }
-        citationWithDash= citationWithDash.replaceAll("^\\s+", "");
+         citationWithDash = citationWithDashBuilder.toString();
+         citationWithDash= citationWithDash.replaceAll("^\\s+", "");
         return citationWithDash;
     }
 
@@ -383,16 +373,17 @@ class DocumentParser {
     /**
      * Closes the file that is being parsed.
      */
-    void close() {
+    void close() throws IOException {
         try {
             log.writeToLogFile("Closing file");
             log.newLine();
             pdDoc.close();
             cosDoc.close();
         } catch (IOException e) {
-            System.err.println("ERROR: There was an error closing the file");
             log.writeToLogFile("There was a problem closing the file");
             log.newLine();
+            throw new IOException("ERROR: There was an error closing the file");
+
         }
 
     }
@@ -439,13 +430,19 @@ class DocumentParser {
         return result;
     }
 
-    String getAuthors() throws IOException {
-        //Authors are normally right under the title of the paper, so find a y2 > y1, where y1 = title y position, and whose font >= text body size and has mroe than 3 chars
 
+    /**
+     * Gets the authors of the paper by analyzing the text. getTitle() needs to be called before using this method.
+     * @return String with all the author names
+     * @throws IOException Unable to parse the file
+     */
+    String getAuthors() throws IOException {
+        //Authors are normally right under the title of the paper.
+        //So we consider the two lines that come after the title
         if (possibleAuthorsNames.isEmpty()) {
             return "No authors found";
         }
-        //The index 1 and 2 contain the two possible author strings.
+        //The index 2 and 3  contain the two possible author strings.
         String[] result = possibleAuthorsNames.split("\\{");
 
         for (int i= result.length - 2; i < result.length; i++) {
@@ -455,11 +452,14 @@ class DocumentParser {
             possibleAuthorsNames = possibleAuthorsNames.replaceAll("[\\n\\r]", "");
 
             //Remove any special characters
-            possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-0-9.,]", "");
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-.,]", "");
             //Remove any leading or trailing space
             possibleAuthorsNames = possibleAuthorsNames.replaceAll("^[ \\t]+|[ \\t]+$", "");
             //Remove trailing comma because it can produce errors and make sure that the string is not too long
-            //count number of spaces. Needs to be more than one author
+
+            //Count the number of spaces in the string to make sure it is not too long or too short.
+            //If it is too long, it probably means that we have a string that do not contain the names of the authors
+            //If it is too short, it means that we only retrieved one name.
             String[] numOfSpaces = possibleAuthorsNames.split("\\s");
             if (numOfSpaces.length < 15 && numOfSpaces.length > 2) {
                 if (possibleAuthorsNames.endsWith(",")) {
@@ -469,16 +469,23 @@ class DocumentParser {
 
                 }
             }
-            //Try to find more than one author, if not just return original
+
+            //Try to find more than one author, if not just return the first one.
+            //Todo: Remove ending period  or "and" here and in the other case up
+
+
             if (numOfSpaces.length <=2) {
+                if (possibleAuthorsNames.endsWith(",")) {
+                    possibleAuthorsNames = possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
+                }
                  DocumentParser dp = new DocumentParser(file, false, false);
-                 Pattern authorsPattern = Pattern.compile("Xu Luo(.*)?");
+                 Pattern authorsPattern = Pattern.compile(possibleAuthorsNames+"(.*)?");
                  Matcher matcher2 = authorsPattern.matcher(dp.parsedText);
                  if (matcher2.find()) {
                      possibleAuthorsNames = matcher2.group();
                      //Format correctly
                      possibleAuthorsNames = possibleAuthorsNames.replaceAll("[\\n\\r]", "");
-                     possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-0-9.,]", "");
+                     possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-.,]", "");
                      possibleAuthorsNames = possibleAuthorsNames.replaceAll("^[ \\t]+|[ \\t]+$", "");
                      dp.close();
                      if (possibleAuthorsNames.endsWith(",")) {
@@ -498,8 +505,12 @@ class DocumentParser {
     }
 
 
-
-     ArrayList<String> getInTextCitationsCase1(String superScriptSize) {
+    /**
+     * Helper method. Gets all the in text citations that are written as numbers, including superscripts.
+     * @param superScriptSize empty string if there no superscript, if not the size that the superscript
+     * @return ArrayList with all the citations
+     */
+     ArrayList<String> getInTextCitationsCase1(String superScriptSize){
         ArrayList<String> result = new ArrayList<>();
         Matcher matcher;
 
@@ -509,7 +520,6 @@ class DocumentParser {
             String patternCase1 = "\\[\\d+(•)*(–\\d+(•)*)*(,( )*\\d+(•)*((–\\d+)(•)*)*)*]";
             Pattern pattern1 = Pattern.compile(patternCase1);
             matcher = pattern1.matcher(parsedText);
-            System.out.println();
 
         } else {
 
@@ -538,18 +548,9 @@ class DocumentParser {
         if (result.isEmpty()) {
             log.writeToLogFile("WARNING - Could not find in-text citations for document - CASE 1");
             log.newLine();
-            System.out.println("WARNING - Could not find in-text citations for document - CASE 1"); //delete
         }
         return result;
     }
-
-    //Case When the text citations appear as small numbers m^4,5
-    //Superscripts can be of more than 1 size
-    //The regex cn confuse cases where m_1, so have to handle that
-    //IMPORTANT: To identify a superscript, we base on the y position of the text right after.
-    //If it is a superscript citation, that is text^citation rather than text_number, the y position after the citation has to bee
-    //larger. Ex: {|fontSizePossCitation&Y1|}5{|fontSizeNormalText&Y2|} bla bla bla.
-    // If Y2>Y1, text is citation, if not, ignore.
 
     /**
      * Based on the number of times each font is used, get all the possible font sizes that could be used to write superscripts.
@@ -593,9 +594,8 @@ class DocumentParser {
 
             }
             for (float size : frequencies.get(numberOfTimesUSed)) {
-                    float curr = size;
 
-                    if (numberOfTimesUSed < 50) {
+                if (numberOfTimesUSed < 50) {
                         //If it happens less than 50 times, we have already considered everything we needed so we break
                         break;
                     }
@@ -604,27 +604,27 @@ class DocumentParser {
                     //-It is smaller than the text body size
                     //-It is smaller than 7.0
                     //-It was used at least 50 times
-                    if (smallestFont <= curr && curr < textBodySize && curr < 7.0 && numberOfTimesUSed >= 50) {
+                    if (smallestFont <= size && size < textBodySize && size < 7.0 && numberOfTimesUSed >= 50) {
                         if (!found) {
-                            superScriptSize.append(curr);
+                            superScriptSize.append(size);
                             found = true;
                         } else {
-                            superScriptSize.append("|").append(curr);
+                            superScriptSize.append("|").append(size);
 
                         }
                     }
-
-
                 }
-
-
-
         }
 
         return superScriptSize.toString();
     }
 
-    //Makes sure that is a valid superscript. If y2 > y1, then is valid. If empty, ignore, if no y2, then check character before.
+
+    /**
+     * Returns a a valid superscript. If y2 > y1, then is valid. If empty, ignore. If there is no y2, then check the word before the possible superscript
+     * @param possibleSuperScript String that could contain a superscript
+     * @return string with correctly formatted superscript, or an empty string if it is not
+     */
      String formatSuperScript(String possibleSuperScript) {
         //Get the front of the string, if there exist any
         Pattern pattern = Pattern.compile("(^[^{]*)");
@@ -677,7 +677,7 @@ class DocumentParser {
         }
         //If there is no y2
         if (y2.toString().isEmpty() || result.length == 3) {
-            if (prefix.length() <= 3) {
+            if (prefix.length() <= 3 && prefix.length() > 0) {
                 //If first or last char is mayus, or the last one, then it is probably an abreviation and not going to be the prefix of a citation
                 //Get the first character and last cha
                 Character firstChar = prefix.charAt(0);
@@ -707,4 +707,7 @@ class DocumentParser {
     }
 
 
+    public Object getYear() {
+        return null;
+    }
 }

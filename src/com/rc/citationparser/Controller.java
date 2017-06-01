@@ -4,10 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,6 +19,7 @@ class Controller {
     private File twinFile1;
     private File twinFile2;
     private File[] comparisonFiles;
+    private TreeMap<Integer, ArrayList<Object>> dataGathered;
 
 
     Controller(View cView, boolean start) {
@@ -63,6 +61,14 @@ class Controller {
                 analyzeFiles();
 
             } else if (choice == 4) {
+                ArrayList<Object> list = new ArrayList<>();
+                list.add("Paper");
+                list.add("Number cites A");
+                list.add("Number cites B");
+                list.add("Number cites A&B");
+                list.add("Adjacent-Cit Rate");
+                dataGathered.put(0, list);
+                outputToFile();
 
             } else if (choice == 5) {
                 end = true;
@@ -79,6 +85,18 @@ class Controller {
 
     }
 
+    private void outputToFile() {
+        FileOutput output = new FileOutput();
+        try {
+            output.writeToFile(dataGathered);
+            cView.displayToScreen("This is the information: ");
+            output.readFile();
+
+        } catch (IOException e) {
+            cView.displayErrorToScreen("There was an error trying to open the file. Make sure the file exists. ");
+        }
+    }
+
     private void analyzeFiles() {
 
         //Error checking to enforce that user has completed step 1 and 2
@@ -88,32 +106,31 @@ class Controller {
             cView.displayToScreen("You have not set the twin files");
         } else {
 
-            //Maps a document to the number of times the twins are cited together
-            HashMap<String, Integer> nameOfDocToText = new HashMap<>();
+            dataGathered = new TreeMap<>();
+
 
             //Goes through each document inside of the folder
             for (int i = 0; i < comparisonFiles.length; i++) {
                 File curr = comparisonFiles[i];
                 if (!curr.getName().equals(".DS_Store")) {
                     try {
-                        DocumentParser parser = new DocumentParser(curr, true, false);
 
+                        DocumentParser parser = new DocumentParser(curr, true, false);
 
                         //For Twin1
                         FileFormatter.setFile(twinFile1);
                         //Retrieve the authors of the paper
                         String authorsNamesTwin1 = FileFormatter.getAuthors();
                         //Get a regex with all possible name combinations of the authors
-                        String RegexReadyTwin1 = generateReferenceRegex(authorsNamesTwin1, true);
+                        String regexReadyTwin1 = generateReferenceRegex(authorsNamesTwin1, true);
                         //Gets the citation for twin1 found in this paper
                         String citationTwin1 = "";
                         try {
-                            citationTwin1 = parser.getReference(RegexReadyTwin1, authorsNamesTwin1);
+                            citationTwin1 = parser.getReference(regexReadyTwin1, authorsNamesTwin1);
                         } catch (IllegalArgumentException e) {
                             cView.displayErrorToScreen(e.getMessage());
                         }
                         FileFormatter.closeFile();
-
 
 
                         //For Twin2
@@ -141,166 +158,188 @@ class Controller {
                         if (citationTwin1.isEmpty() || citationTwin2.isEmpty()) {
                             //If one of the papers is not cited, do not process anything else
                             System.out.println("One of the papers is not cited so result is 0");
-                            nameOfDocToText.put(curr.getName(), 0);
 
-                        } else {
+                        }
 
-                            //Check if the references are numbered
-                            StringBuilder number = new StringBuilder();
+                        //Todo: case when both are emtpy
+
+                        String testCitation = citationTwin1;
+
+                        if (citationTwin1.isEmpty()) {
+                            testCitation = citationTwin2;
+                        }
+                        //Check if the references are numbered
+                        StringBuilder number = new StringBuilder();
+                        for (Character c : testCitation.toCharArray()) {
+                            if (c == '.') {
+                                break;
+                            }
+                            number.append(c);
+
+                        }
+                        boolean areRefNumbered = false;
+                        String referenceNumberOfTwin = number.toString();
+                        try {
+                            //The reference are number
+                            Integer.parseInt(referenceNumberOfTwin);
+                            areRefNumbered = true;
+                        } catch (NumberFormatException e) {
+                            //References are not numbered
+                        }
+
+                        //Gets all citations of curr doc
+                        ArrayList<String> citationsCurrDoc = parser.getInTextCitations(areRefNumbered);
+
+
+                        if (areRefNumbered) {
+                            //Reference are in this format
+                            //4. Stewart, John 2010.
+
+                            //Can parse the following cases:
+                            //Case 1: When in text citations are numbers between brackets
+                            //Ex: [4, 5] or  [5]
+                            //Case 2: When in text citations are numbers, but in the format of superscript
+                            //Ex: word^(5,6)
+
+                            StringBuilder number1 = new StringBuilder();
                             for (Character c : citationTwin1.toCharArray()) {
                                 if (c == '.') {
                                     break;
                                 }
-                                number.append(c);
+                                number1.append(c);
 
                             }
-                            boolean areRefNumbered = false;
-                            String referenceNumberOfTwin = number.toString();
-                            try {
-                                //The reference are number
-                                Integer.parseInt(referenceNumberOfTwin);
-                                areRefNumbered = true;
-                            } catch (NumberFormatException e) {
-                                //References are not numbered
+                            String referenceNumberOfTwin1 = number1.toString();
+
+                            StringBuilder number2 = new StringBuilder();
+                            for (Character c : citationTwin2.toCharArray()) {
+                                if (c == '.') {
+                                    break;
+                                }
+                                number2.append(c);
+                            }
+                            String referenceNumberOfTwin2 = number2.toString();
+                            System.out.println("Reference number of twin 1: " + referenceNumberOfTwin1);
+                            System.out.println("Reference number of twin 2: " + referenceNumberOfTwin2);
+
+
+                            String patter1S = "\\b" + referenceNumberOfTwin1 + "\\b";
+                            String pattern2S = "\\b" + referenceNumberOfTwin2 + "\\b";
+
+                            Pattern pattern1 = Pattern.compile(patter1S);
+                            Pattern pattern2 = Pattern.compile(pattern2S);
+
+
+                            //Get number
+                            for (String citation : citationsCurrDoc) {
+                                Matcher matcher1 = null;
+                                if (!citationTwin1.isEmpty()) {
+                                    matcher1 = pattern1.matcher(citation);
+                                }
+                                Matcher matcher2 = null;
+                                if (!citationTwin2.isEmpty()) {
+                                    matcher2 = pattern2.matcher(citation);
+                                }
+
+                                boolean aFound = false, bFound = false;
+
+                                if (!citationTwin1.isEmpty() && matcher1.find()) {
+                                    xA = xA + 1;
+                                    aFound = true;
+                                    System.out.println("-Valid");
+
+                                }
+                                if (!citationTwin2.isEmpty() && matcher2.find()) {
+                                    xB = xB + 1;
+                                    bFound = true;
+                                    System.out.println("-Valid");
+
+                                }
+
+                                //If citation contains both twin files, then increase counter
+                                if (aFound && bFound) {
+                                    System.out.println("Twin citations found: " + citation);
+                                    xC = xC + 1;
+                                }
                             }
 
-                            //Gets all citations of curr doc
-                            ArrayList<String> citationsCurrDoc = parser.getInTextCitations(areRefNumbered);
+                        } else {
+                            //Do it based on authors and year
+                            //Gets the year that appears on the reference of the twin
+                            String yearTwin1 = "";
+                            if (!citationTwin1.isEmpty()) {
+                                yearTwin1 = getYear(citationTwin1);
+                            }
+                            String yearTwin2 = "";
+                            if (!citationTwin2.isEmpty()) {
+                                yearTwin2 = getYear(citationTwin2);
+                            }
 
 
-                            if (areRefNumbered) {
-                                //Reference are in this format
-                                //4. Stewart, John 2010.
+                            //Generates a regex based online on the first author of the paper
+                            String authorRegexTwin1 = generateReferenceRegex(authorsNamesTwin1, false);
+                            String authorRegexTwin2 = generateReferenceRegex(authorsNamesTwin2, false);
 
-                                //Can parse the following cases:
-                                //Case 1: When in text citations are numbers between brackets
-                                //Ex: [4, 5] or  [5]
-                                //Case 2: When in text citations are numbers, but in the format of superscript
-                                //Ex: word^(5,6)
 
-                                StringBuilder number1 = new StringBuilder();
-                                for (Character c : citationTwin1.toCharArray()) {
-                                    if (c == '.') {
-                                        break;
-                                    }
-                                    number1.append(c);
+                            for (String citation : citationsCurrDoc) {
+                                boolean aFound = false, bFound = false;
 
+                                //If citations matches pattern, return the pattern and compare the year
+                                String containsCitationResult = "";
+                                if (!citationTwin1.isEmpty()) {
+                                    containsCitationResult = containsCitation(citation, authorRegexTwin1, authorsNamesTwin1);
                                 }
-                                String referenceNumberOfTwin1 = number1.toString();
 
-                                StringBuilder number2 = new StringBuilder();
-                                for (Character c : citationTwin2.toCharArray()) {
-                                    if (c == '.') {
-                                        break;
-                                    }
-                                    number2.append(c);
+                                if (!containsCitationResult.isEmpty() && containsYear(containsCitationResult, yearTwin1)) {
+                                    xA = xA + 1;
+                                    aFound = true;
+                                    System.out.println("----Valid");
                                 }
-                                String referenceNumberOfTwin2 = number2.toString();
-                                System.out.println("Reference number of twin 1: " + referenceNumberOfTwin1);
-                                System.out.println("Reference number of twin 2: " + referenceNumberOfTwin2);
 
-
-                                String patter1S = "\\b" + referenceNumberOfTwin1 + "\\b";
-                                String pattern2S = "\\b" + referenceNumberOfTwin2 + "\\b";
-
-                                Pattern pattern1 = Pattern.compile(patter1S);
-                                Pattern pattern2 = Pattern.compile(pattern2S);
-
-
-
-
-                                //Get number
-                                for (String citation : citationsCurrDoc) {
-                                    Matcher matcher1 = pattern1.matcher(citation);
-                                    Matcher matcher2 = pattern2.matcher(citation);
-
-                                    boolean aFound = false, bFound= false;
-
-                                    if (matcher1.find()) {
-                                        xA = xA + 1;
-                                        aFound = true;
-                                        System.out.println("----Valid");
-
-                                    }
-                                    if (matcher2.find()) {
-                                        xB = xB + 1;
-                                        bFound = true;
-                                        System.out.println("----Valid");
-
-                                    }
-
-                                    //If citation contains both twin files, then increase counter
-                                    if (aFound && bFound) {
-                                        System.out.println("Twin citations found: " + citation);
-                                        xC = xC + 1;
-                                    }
-                                }
-                                //Adds to map
-                              //  nameOfDocToText.put(curr.getName(), xC);
-
-                            } else {
-                                //Do it based on authors and year
-                                //Gets the year that appears on the reference of the twin
-                                String yearTwin1 = getYear(citationTwin1);
-                                String yearTwin2 = getYear(citationTwin2);
-
-
-                                //Generates a regex based online on the first author of the paper
-                                String authorRegexTwin1 = generateReferenceRegex(authorsNamesTwin1, false);
-                                String authorRegexTwin2 = generateReferenceRegex(authorsNamesTwin2, false);
-
-
-
-                                int counter = 0;
-                                for (String citation : citationsCurrDoc) {
-                                    boolean aFound = false, bFound= false;
-
-                                    //If citations matches pattern, return the pattern and compare the year
-
-                                    String containsCitationResult = containsCitation(citation, authorRegexTwin1, authorsNamesTwin1);
-
-                                    if (!containsCitationResult.isEmpty() && containsYear(containsCitationResult, yearTwin1)) {
-                                        xA = xA + 1;
-                                        aFound = true;
-                                        System.out.println("----Valid");
-                                    }
-
+                                containsCitationResult = "";
+                                if (!citationTwin2.isEmpty()) {
                                     containsCitationResult = containsCitation(citation, authorRegexTwin2, authorsNamesTwin2);
-                                    if (!containsCitationResult.isEmpty() && containsYear(containsCitationResult, yearTwin2)) {
-                                        xB = xB + 1;
-                                        bFound = true;
-                                        System.out.println("----Valid");
-                                    }
-
-
-                                    if (aFound && bFound) {
-                                        xC = xC + 1;
-                                    }
                                 }
-                               // nameOfDocToText.put(curr.getName(), counter);
+                                if (!containsCitationResult.isEmpty() && containsYear(containsCitationResult, yearTwin2)) {
+                                    xB = xB + 1;
+                                    bFound = true;
+                                    System.out.println("----Valid");
+                                }
 
 
+                                if (aFound && bFound) {
+                                    xC = xC + 1;
+                                }
                             }
+
+
                         }
+
                         //Calculation for finding percentage
                         //rN=xC/[(xA+xB)/2]
                         double rN = 0.0;
                         if (xA + xB == 0) {
                             rN = 0;
+                        } else {
+                            rN = ((double) xC / ((double) (xA + xB) / 2.0)) * 100;
                         }
-                        else {
-                            rN = ((double) xC/((double)(xA + xB)/2.0)) * 100;
+                        ArrayList<Object> list = new ArrayList<>();
+                        list.add(curr.getName());
+                        list.add((double) xA);
+                        list.add((double) xB);
+                        list.add((double) xC);
+                        list.add(rN);
+                        dataGathered.put(i, list);
 
-                        }
-                        //Todo: change to view
-                        System.out.println("RESULT: Document " + curr.getName() + " Cites both papers together " + rN + "%");
+                        cView.displayToScreen("RESULT: Document " + curr.getName() + " Cites both papers together " + rN + "%");
                         parser.close();
-                        System.out.println("---------------------------------------------------");
+                        cView.displayToScreen("---------------------------------------------------");
 
 
                     } catch (IOException e) {
                         cView.displayErrorToScreen("ERROR: There was an error parsing document " + curr.getName());
                     }
+                    System.out.println(dataGathered);
                 }
             }
 
@@ -308,7 +347,9 @@ class Controller {
 
     }
 
-    private String containsCitation(String citation, String authorRegex, String authorNamesTwin) {
+    //Todo: modify this
+
+    String containsCitation(String citation, String authorRegex, String authorNamesTwin) {
 
         String pattern = (authorRegex) + "([^;)])*((\\b((18|19|20)\\d{2}([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
         Pattern pattern1 = Pattern.compile(pattern);
@@ -324,14 +365,13 @@ class Controller {
             return results.get(0);
         } else if (results.size() > 1) {
             System.out.println("Citation with tie " + citation);
-           return solveReferenceTies(results, authorNamesTwin).get(0);
+            return solveReferenceTies(results, authorNamesTwin).get(0);
         } else {
             return "";
         }
     }
 
 
-    //Todo: one single method this
     //Based on Levenshtein Distance, uses the authors names to find the most similar citation
     private ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) {
         ArrayList<String> newResult = new ArrayList<>();
@@ -353,7 +393,7 @@ class Controller {
     }
 
 
-    private boolean containsYear(String citation, String year) {
+    boolean containsYear(String citation, String year) {
         StringBuilder yearNumber = new StringBuilder();
         StringBuilder yearLetter = new StringBuilder();
         try {
@@ -384,16 +424,15 @@ class Controller {
         }
         String yearString = yearNumber.toString();
         String letterString = yearLetter.toString();
-        String yearAndLetterString = yearString+letterString;
+        String yearAndLetterString = yearString + letterString;
 
         String pattern;
 
         //If there is no letter, do this
         if (letterString.isEmpty()) {
-            pattern = "((\\b"+yearAndLetterString+"\\b)|(unpublished data)|(data not shown))";
-        }
-        else {
-            pattern = "((\\b"+yearAndLetterString+"\\b)|(\\b("+yearString+"( )?([A-z]=?[^"+letterString+"])*((,( )?([A-z]=?[^"+letterString+"])*)*(( )?)"+letterString+")+)\\b)|(unpublished data)|(data not shown))";
+            pattern = "((\\b" + yearAndLetterString + "\\b)|(unpublished data)|(data not shown))";
+        } else {
+            pattern = "((\\b" + yearAndLetterString + "\\b)|(\\b(" + yearString + "( )?([A-z]=?[^" + letterString + "])*((,( )?([A-z]=?[^" + letterString + "])*)*(( )?)" + letterString + ")+)\\b)|(unpublished data)|(data not shown))";
         }
         Pattern yearPattern = Pattern.compile(pattern);
         Matcher matcher = yearPattern.matcher(citation);
@@ -421,7 +460,19 @@ class Controller {
         //Generates all possible references that could be found in a bibliography based on authors names
         //Ex: Xu Luo, X Luo, X. Luo, Luo X. Luo X
         //Splits string by authors names
-        List<String> authorsNames = Arrays.asList(authors.split("\\s*,\\s*"));
+
+        List<String> holder = Arrays.asList(authors.split("\\s*,\\s*"));
+        ArrayList<String> authorsNames = new ArrayList<>(holder);
+        for (int i = 0; i < authorsNames.size(); i++) {
+            //Remove single characters like A. or X. or L because it can make the regex produce the wrong result
+            String author = authorsNames.get(i);
+            author = author.replaceAll("( )?[A-z](\\.)( )?", " ");
+            author = author.replaceAll("^[ \\t]+|[ \\t]+$", "");
+            authorsNames.remove(i);
+            if (!author.isEmpty()) {
+                authorsNames.add(i, author);
+            }
+        }
         int authorCounter = 0;
         //Do it based on only the first author's name IMPORTANT ASSUMPTION
         if (!usesAnd) {
@@ -438,12 +489,10 @@ class Controller {
             if ((authorsNames.size() > 1) && (authorCounter < authorsNames.size())) {
                 if (usesAnd) {
                     authorsRegex.append("(?=.*");
-                }
-                else{
+                } else {
                     if (authorCounter > 0) {
                         authorsRegex.append("|(");
-                    }
-                    else {
+                    } else {
                         //if it is starting parenthesis
                         authorsRegex.append("(");
 
@@ -563,8 +612,7 @@ class Controller {
                         FileFormatter.addTitle(possTitle);
                         end = true;
                         valid = true;
-                    }
-                    else {
+                    } else {
                         end = true;
                         choice = 3;
                     }
@@ -574,6 +622,10 @@ class Controller {
                 String possAuthors = "";
                 try {
                     possAuthors = documentParser.getAuthors();
+                    if (possAuthors.split(",").length <= 1) {
+                        //Todo: make function
+                        documentParser.getYear();
+                    }
                 } catch (IOException e) {
                     cView.displayErrorToScreen(e.getMessage());
                 }
@@ -586,20 +638,20 @@ class Controller {
                         FileFormatter.addAuthors(possAuthors);
                         end = true;
                         valid = true;
-                    }
-                    else {
+                    } else {
                         end = true;
                         choice = 3;
                     }
                 }
 
 
+                try {
+                    documentParser.close();
+                } catch (IOException e) {
+                    cView.displayErrorToScreen(e.getMessage());
+                }
 
-                documentParser.close();
-
-            }
-
-            else if (choice == 3) {
+            } else if (choice == 3) {
                 //Add title to the document
                 boolean end = false;
 
@@ -622,19 +674,25 @@ class Controller {
                 String authors = null;
                 while (!end) {
                     cView.displayToScreen("Please write the names of the authors, as it appears on the paper, but without special" +
-                            " symbols. Please include at least 2 authors." +
+                            " symbols. Please include at least 3 authors." +
                             "\nIf there are more than 3, write only the first 3 in the EXACT order that they appear on the paper. SEPARATE them with ','" +
-                            "\nPlease write the names in the following format: Author1Name Author1LastName, Author2Name Author2LastName.");
-                    cView.displayToScreen("Ex: Elizabeth Slee, MaryHarte, Ruth M. Kluck");
+                            "\nIf there is only one author, please include the year the paper was published separated with a ','. Ex: Kerr, 2010" +
+                            "\nPlease write the names in the following format: Author1Name Author1LastName, Author2Name Author2LastName");
+                    cView.displayToScreen("Ex: Elizabeth Slee, Mary Harte, Ruth Kluck");
                     authors = cView.getInput();
                     cView.displayToScreen("You typed: " + authors);
                     cView.displayToScreen("Are you sure you want to use this? (Y/N)");
                     String ans = cView.getInput();
 
                     if (ans.equals("Y") || ans.equals("y")) {
-                        end = true;
+                        if (ans.split(",").length <= 1) {
+                            cView.displayToScreen("You only wrote one name. Please include more names or the year the paper was published");
+                        } else {
+                            end = true;
+                        }
                     }
                 }
+
                 FileFormatter.addAuthors(authors);
                 valid = true;
             }
@@ -642,8 +700,6 @@ class Controller {
         }
         return file;
     }
-
-
 
 
 //
