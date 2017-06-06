@@ -7,6 +7,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import java.io.File;
 import java.io.IOException;
+import java.util.Calendar;
 
 /**
  * Created by Rafael Castro on 5/15/17.
@@ -122,4 +123,22 @@ class FileFormatter {
     }
 
 
+    public static void addYear(String year) {
+        PDDocumentInformation currInfo = pdDoc.getDocumentInformation();
+        Calendar calendar = Calendar.getInstance();
+        calendar.clear();
+        calendar.set(Calendar.YEAR, Integer.valueOf(year));
+        currInfo.setCreationDate(calendar);
+        pdDoc.setDocumentInformation(currInfo);
+        try {
+            pdDoc.save(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static int getYear() {
+         Calendar cal = pdDoc.getDocumentInformation().getCreationDate();
+         return cal.get(Calendar.YEAR);
+    }
 }

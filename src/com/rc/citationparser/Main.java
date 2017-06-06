@@ -8,7 +8,10 @@ import java.util.TreeMap;
 public class Main {
 
     public static void main(String[] args) {
-        View view = new View(true);
-        Controller controller = new Controller(view, true);
+        MainViewGUI viewGUI = new MainViewGUI();
+        View viewCommandLine = new View(true);
+       // Controller controller = new Controller(viewGUI, true, true);
+        Controller controller = new Controller(viewCommandLine, true, false);
+
     }
 }

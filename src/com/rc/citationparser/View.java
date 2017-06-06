@@ -1,5 +1,6 @@
 package com.rc.citationparser;
 
+import java.awt.event.ActionListener;
 import java.io.File;
  import java.util.InputMismatchException;
 import java.util.Scanner;
@@ -8,7 +9,7 @@ import java.util.Scanner;
  * Created by rafaelcastro on 5/15/17.
  * The view is an output representation of the application.
  */
-class View {
+class View implements ViewInterface {
 
     private final Scanner scanner;
 
@@ -20,11 +21,12 @@ class View {
     }
 
 
+
     /**
      * Returns a valid file based on user input. The method checks for any possible errors
      * @return a file
      */
-    protected File getFile() {
+      public File getFile() {
         boolean isValid = false;
         File file = null;
         while (!isValid) {
@@ -54,7 +56,7 @@ class View {
      * Gets all files inside of a folder. Checks for any errors.
      * @return a File[] with all the files inside the folder
      */
-    protected File[] getFiles() {
+    public File[] getFiles() {
         boolean isValid = false;
         File[] list = null;
         while (!isValid) {
@@ -102,7 +104,7 @@ class View {
      * Retrieves a user input can only be a number >= 0
      * @return an int based on the user input
      */
-    protected int getUserChoice() {
+    public int getUserChoice() {
         int choice = 0;
         boolean valid = false;
         while (!valid) {
@@ -123,14 +125,31 @@ class View {
      * Prints a string into the comand line
      * @param s - String that needs to be printed
      */
-    protected void displayToScreen(String s) {
+    public void displayToScreen(String s) {
         System.out.println(s);
+    }
+
+    @Override
+    public String displayPopUp(String[] options) {
+        for (String s: options) {
+            System.out.println(s);
+        }
+        return "";
+    }
+
+
+    /**
+     * Prints a string into the comand line
+     * @param s - String that needs to be printed
+     */
+    public void displayInstruction(String s) {
+            System.out.println(s);
     }
 
     /**
      * Use when the user makes an invalid choice.
      */
-    protected void invalidChoice() {
+    public void invalidChoice() {
         System.out.println("Invalid input");
 
     }
@@ -139,7 +158,7 @@ class View {
      * Retrieves the input of the user
      * @return a string with the input
      */
-    protected String getInput() {
+    public String getInput() {
         boolean done = false;
         String input = null;
         while (!done) {
@@ -177,4 +196,11 @@ class View {
     public void displayErrorToScreen(String s) {
         System.err.println(s);
     }
+
+    @Override
+    public void addSubmitListener(ActionListener pressed) {
+
+    }
+
+
 }

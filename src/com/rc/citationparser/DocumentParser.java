@@ -55,6 +55,7 @@ class DocumentParser {
             throw new IOException("ERROR: File does not exist");
         }
         PDFParser parser = new PDFParser(new RandomAccessBufferedFileInputStream(fileToParse));
+        System.out.println("*(******FILENAME "+ fileToParse.getName());
         parser.parse();
         cosDoc = parser.getDocument();
 
@@ -125,6 +126,11 @@ class DocumentParser {
         pdDoc = new PDDocument(cosDoc);
         pdfStripper.setStartPage(1);
         if (parseEntireDoc) {
+            try {
+                pdDoc.getNumberOfPages();
+            }catch (IllegalArgumentException e){
+                throw new IOException("There was a problem parsing this file");
+            }
             pdfStripper.setEndPage(pdDoc.getNumberOfPages());
         } else {
             pdfStripper.setEndPage(1);
@@ -162,36 +168,65 @@ class DocumentParser {
      * Ex: 1. Jacobson MD, Weil M, Raff MC: Programmed cell death in animal development. Cell 1997, 88:347-354.
      * For the case when the citations are not numbered.
      * Ex: Jacobson MD, Weil M, Raff MC: Programmed cell death in animal development. Cell 1997, 88:347-354.
+     * And many more..
+     * //Todo: Write more
      *
-     * @param authorRegex - Regex based on the names of the authors of a given twin paper.
+     * Case 1 - for more than 1 author and Case 2 for only 1 or in case of et al
+     *
+     * @param allAuthorsRegex - Regex based on the names of the authors of a given twin paper.
      * @param authors     - authors of a given twin paper.
+     * @param yearPublished2
      * @return string with the reference used in the paper. Starts with author name and finishes with the year the paper was published.
      */
-    String getReference(String authorRegex, String authors) throws IllegalArgumentException {
+    String getReference(String allAuthorsRegex, String authors, String mainAuthorRegex, int yearPublished2) throws IllegalArgumentException, IOException {
         //Pattern use to capture the citation. Starts with the author name and ends with the year the paper was published.
-        String patternCase1 = "[^.\n]*(\\d+(\\.( ).*))*(" + authorRegex + ")([^;)])*?((\\b((18|19|20)\\d{2}( )?([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+        //String patternCase1 = "[^.\\n]*(\\d+(\\.( ).*))*(" + allAuthorsRegex + ")([^;)])*?((\\b((18|19|20)\\d{2}( )?([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+        String patternCase1 = "[^.\\n]*(\\d+(\\.( ).*))*(" + allAuthorsRegex + ")([^;)])*?((\\b((18|19|20)\\d{2}( )?([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+        System.out.println("PAttern 1 " + patternCase1);
         Pattern pattern1 = Pattern.compile(patternCase1);
         Matcher matcher1 = pattern1.matcher(parsedText);
-        ArrayList<String> result = new ArrayList<>();
+        Comp compator = new Comp();
+        TreeSet<String> result = new TreeSet<>(Collections.reverseOrder(compator));
         log.writeToLogFile("Citations found for paper");
         log.newLine();
 
+        //If there is only one author, go directly to case 2
         while (matcher1.find()) {
             log.writeToLogFile("Found " + matcher1.group());
             log.newLine();
-            result.add(matcher1.group());
+            String nResult = matcher1.group();
+            result.add(nResult);
+
         }
         if (result.isEmpty()) {
-            log.writeToLogFile("No reference found");
+            log.writeToLogFile("No reference found case 1");
             log.newLine();
-            return "";
+            //Since we are only searching for main author, we will include the year paper was published
+            String patternCase2 = "[^.\\n]*(\\d+(\\.( ).*))*(("+mainAuthorRegex+")(.* et al))([^;)])*?((\\b(("+ yearPublished2 +")( )?([A-z])*(,( )?((("+ yearPublished2 +")([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+            System.out.println("PAttern 2 " +patternCase2);
+            Pattern pattern2 = Pattern.compile(patternCase2);
+            Matcher matcher2 = pattern2.matcher(parsedText);
+
+            while (matcher2.find()) {
+                String nResult = matcher2.group();
+                result.add(nResult);
+            }
+            if (result.isEmpty()) {
+                return "";
+            }
+            else if (result.size()>1) {
+                result = solveReferenceTies(result, authors);
+            }
+            else {
+                return result.first();
+            }
         }
         if (result.size() > 1) {
             log.writeToLogFile("There is a tie");
             log.newLine();
             result = solveReferenceTies(result, authors);
         }
-        return result.get(0);
+        return result.first();
     }
 
     /**
@@ -201,8 +236,9 @@ class DocumentParser {
      * @param authors - names of the authors of a given twin paper
      * @return arrayList with one element, which is the correct reference.
      */
-     ArrayList<String> solveReferenceTies(ArrayList<String> result, String authors) throws IllegalArgumentException {
-        ArrayList<String> newResult = new ArrayList<>();
+     TreeSet<String> solveReferenceTies(TreeSet<String> result, String authors) throws IllegalArgumentException {
+        TreeSet<String> newResult = new TreeSet<>();
+        String possibleResult = "";
         int smallest = Integer.MAX_VALUE;
 
         for (String s : result) {
@@ -214,13 +250,14 @@ class DocumentParser {
                 //Ties should not happen so throw an error
                 throw new IllegalArgumentException("ERROR: THERE WAS AN ERROR FINDING THE CITATION IN THIS PAPER, PLEASE INCLUDE MORE THAN 3 AUTHORS' NAMES FOR EACH OF THE TWIN PAPERS" +
                         "\nIf the error persist, please inform the developer.");
-
             }
+
             if (newDistance < smallest) {
                 smallest = newDistance;
-                newResult.add(0, s);
+                possibleResult = s;
             }
         }
+        newResult.add(possibleResult);
         return newResult;
     }
 
@@ -341,7 +378,7 @@ class DocumentParser {
 
 
                 } else {
-                    if (c != ' ' && c != '[' && c != ']') {
+                    if (c != ' ' && ((c != '[' && c != ']') && (c != '(' && c != ')'))) {
                         sb.append(c);
                     }
                 }
@@ -455,6 +492,12 @@ class DocumentParser {
             possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-.,]", "");
             //Remove any leading or trailing space
             possibleAuthorsNames = possibleAuthorsNames.replaceAll("^[ \\t]+|[ \\t]+$", "");
+            //Remove ,. exact match
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll(",\\.", "");
+            //Remove the word and
+            possibleAuthorsNames = possibleAuthorsNames.replaceAll("\\band\\b", "");
+
+            //Todo: And with no comma before both cases and controller
             //Remove trailing comma because it can produce errors and make sure that the string is not too long
 
             //Count the number of spaces in the string to make sure it is not too long or too short.
@@ -462,20 +505,19 @@ class DocumentParser {
             //If it is too short, it means that we only retrieved one name.
             String[] numOfSpaces = possibleAuthorsNames.split("\\s");
             if (numOfSpaces.length < 15 && numOfSpaces.length > 2) {
-                if (possibleAuthorsNames.endsWith(",")) {
-                    return possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
-                } else {
-                    return possibleAuthorsNames;
-
+                //remove comma
+                while (possibleAuthorsNames.endsWith(",")) {
+                    possibleAuthorsNames =  possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
                 }
+                while (possibleAuthorsNames.endsWith(".")) {
+                    possibleAuthorsNames =  possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf("."));
+                }
+                return possibleAuthorsNames;
             }
 
             //Try to find more than one author, if not just return the first one.
-            //Todo: Remove ending period  or "and" here and in the other case up
-
-
             if (numOfSpaces.length <=2) {
-                if (possibleAuthorsNames.endsWith(",")) {
+                while (possibleAuthorsNames.endsWith(",")) {
                     possibleAuthorsNames = possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
                 }
                  DocumentParser dp = new DocumentParser(file, false, false);
@@ -487,12 +529,19 @@ class DocumentParser {
                      possibleAuthorsNames = possibleAuthorsNames.replaceAll("[\\n\\r]", "");
                      possibleAuthorsNames = possibleAuthorsNames.replaceAll("[^A-z\\s-.,]", "");
                      possibleAuthorsNames = possibleAuthorsNames.replaceAll("^[ \\t]+|[ \\t]+$", "");
+                     possibleAuthorsNames = possibleAuthorsNames.replaceAll(",\\.", "");
+                     possibleAuthorsNames = possibleAuthorsNames.replaceAll("\\band\\b", "");
+
                      dp.close();
-                     if (possibleAuthorsNames.endsWith(",")) {
-                         return possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
-                     } else {
-                         return possibleAuthorsNames;
+
+                     while (possibleAuthorsNames.endsWith(",")) {
+                         possibleAuthorsNames =  possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf(","));
                      }
+                     while (possibleAuthorsNames.endsWith(".")) {
+                         possibleAuthorsNames =  possibleAuthorsNames.substring(0, possibleAuthorsNames.lastIndexOf("."));
+                     }
+                     return possibleAuthorsNames;
+
 
                  }
                  else return possibleAuthorsNames;
@@ -517,7 +566,8 @@ class DocumentParser {
         //If there is no super script size
         if (superScriptSize.isEmpty()) {
             //If there is no superscript
-            String patternCase1 = "\\[\\d+(•)*(–\\d+(•)*)*(,( )*\\d+(•)*((–\\d+)(•)*)*)*]";
+            //Accepts ( or []
+            String patternCase1 = "(\\(|\\[)\\d+(•)*(–\\d+(•)*)*(,( )*\\d+(•)*((–\\d+)(•)*)*)*(\\)|])";
             Pattern pattern1 = Pattern.compile(patternCase1);
             matcher = pattern1.matcher(parsedText);
 
@@ -541,7 +591,14 @@ class DocumentParser {
             }
 
             if (!answer.isEmpty()) {
-                result.add(answer);
+                //If pattern is just a year (2009) do not admit
+                Pattern doNotAccept = Pattern.compile("\\([(0-9)]{4}\\)");
+                Matcher invalid = doNotAccept.matcher(answer);
+
+                if (!invalid.find()) {
+                    result.add(answer);
+
+                }
             }
         }
 
@@ -707,7 +764,15 @@ class DocumentParser {
     }
 
 
-    public Object getYear() {
+    public String getYear()
+    {
         return null;
+    }
+}
+
+
+class Comp implements Comparator<String> {
+    public int compare(String o1, String o2) {
+        return Integer.compare(o1.length(), o2.length());
     }
 }

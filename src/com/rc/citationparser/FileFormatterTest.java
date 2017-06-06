@@ -53,6 +53,12 @@ class FileFormatterTest {
     }
 
     @Test
+    void testAddYear() {
+        FileFormatter.addYear("2019");
+        assertEquals(2019, FileFormatter.getYear());
+    }
+
+    @Test
     void testGetCurrentInfo() {
        assertEquals("The title of the paper: Testing Document.\nThe authors: Rafael Castro.",
                FileFormatter.getCurrentInfo());
@@ -66,5 +72,7 @@ class FileFormatterTest {
             fail("Was not able to close the file");
         }
     }
+
+
 
 }

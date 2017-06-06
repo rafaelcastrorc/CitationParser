@@ -2,6 +2,9 @@ package com.rc.citationparser;
 
 import org.apache.commons.lang3.StringUtils;
 
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -13,34 +16,48 @@ import java.util.regex.Pattern;
  * Controls the view and retrieves information from the parser
  */
 
-class Controller {
+class Controller extends Observer {
     private final Logger log;
-    private View cView;
+    private ViewInterface cView;
     private File twinFile1;
     private File twinFile2;
     private File[] comparisonFiles;
     private TreeMap<Integer, ArrayList<Object>> dataGathered;
+    //Input receieved when using GUI
+    String guiInput = "";
+    boolean isGUI;
+    SubmitListener submit;
+    String holder = "";
 
+    //Is gui is if it is a graphical ui, else false
 
-    Controller(View cView, boolean start) {
+    Controller(ViewInterface cView, boolean start, boolean isGUI) {
         this.cView = cView;
         this.log = Logger.getInstance();
+        if (isGUI) {
+            this.isGUI = isGUI;
+        }
         if (start) {
             startProgram();
         }
     }
 
+    /**
+     * Displays the main menu options
+     */
     private void displayOptions() {
-        cView.displayToScreen("Please select an option:");
-        cView.displayToScreen("Press 1 to set to twin files");
-        cView.displayToScreen("Press 2 to set the folder that contains the files that will be analyzed");
-        cView.displayToScreen("Press 3 to check the number of files that cite both");
-        cView.displayToScreen("Press 4 to see the instructions");
-        cView.displayToScreen("Press 5 to Exit");
-        ///        log.addLogFile(cView.getLogFile());
-
+        cView.displayInstruction("Please select an option:" +
+                "\nPress 1 to set to twin files" +
+                "\nPress 2 to set the folder that contains the files that will be analyzed" +
+                "\nPress 3 to analyze the number of files that cite both" +
+                "\nPress 4 to output the result" +
+                "\nPress 5 to Exit");
     }
 
+
+    /**
+     * Starts the program. Works for GUI as well as command line
+     */
     protected void startProgram() {
         displayOptions();
         int choice = cView.getUserChoice();
@@ -51,6 +68,9 @@ class Controller {
             if (choice == 1) {
                 setTwinFiles();
                 cView.displayToScreen("Twin files have been set.");
+                if (isGUI) {
+                    choice = 0;
+                }
 
             } else if (choice == 2) {
                 setComparisonFiles();
@@ -62,6 +82,7 @@ class Controller {
 
             } else if (choice == 4) {
                 ArrayList<Object> list = new ArrayList<>();
+                //Headers of the excel output file
                 list.add("Paper");
                 list.add("Number cites A");
                 list.add("Number cites B");
@@ -84,6 +105,300 @@ class Controller {
         System.exit(1);
 
     }
+
+
+    /**
+     * Sets the metadata information of the twin files
+     */
+    private void setTwinFiles() {
+        log.newLine();
+        cView.displayInstruction("Not all pdf files are formatted the same. The program will try to " +
+                "get the necessary data, but you will have to verify its accuracy");
+
+        //For first tween file
+        cView.displayInstruction("Please type the name of the first twin file. Ex: doc1.pdf");
+        File file1;
+        if (isGUI) {
+            waitForInput("getFile");
+            file1 = (File) submit.getResult();
+            holder = "";
+        } else {
+            file1 = cView.getFile();
+        }
+
+
+        log.writeToLogFile("File 1 name " + file1.getName());
+        log.newLine();
+        twinFile1 = setTwinFileHelper(file1, 1);
+        try {
+            FileFormatter.closeFile();
+        } catch (IOException e) {
+            cView.displayErrorToScreen(e.getMessage());
+        }
+
+        //For file 2
+        cView.displayInstruction("Please type the name of the second twin file. Ex: doc2.pdf");
+        File file2 = null;
+        if (isGUI) {
+            waitForInput("getFile");
+            file2 = (File) submit.getResult();
+        }
+        else {
+            file2 = cView.getFile();
+        }
+
+
+        log.writeToLogFile("File 2 name " + file2.getName());
+        log.newLine();
+        twinFile2 = setTwinFileHelper(file2, 2);
+        try {
+            FileFormatter.closeFile();
+        } catch (IOException e) {
+            cView.displayErrorToScreen(e.getMessage());
+        }
+    }
+
+
+    /**
+     * Helper method to set the twin files
+     * @param file file to set
+     * @param num 1 if its the first twin, 2 if its the second twin
+     * @return File
+     */
+    private File setTwinFileHelper(File file, int num) {
+        try {
+            FileFormatter.setFile(file);
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+        }
+
+        cView.displayToScreen(FileFormatter.getCurrentInfo());
+        cView.displayInstruction("If the information is correct press 1. \nIf you want the program " +
+                "to try to get the right information press 2. \nTo write the information manually press 3.");
+        int choice;
+        if (isGUI) {
+            String[] options = new String[]{"3", "2", "1"};
+            choice = Integer.valueOf(cView.displayPopUp(options));
+        }
+        else {
+            choice = cView.getUserChoice();
+        }
+        boolean valid = false;
+        while (!valid) {
+
+            if (choice == 1) {
+                //If information is correct
+                if (num == 1) {
+                    twinFile1 = file;
+                } else {
+                    twinFile2 = file;
+                }
+                valid = true;
+
+            } else if (choice == 2) {
+                cView.displayToScreen("Loading");
+                DocumentParser documentParser = null;
+                try {
+                    documentParser = new DocumentParser(file, false, true);
+                } catch (IOException e) {
+                    cView.displayErrorToScreen("There was an error parsing the file");
+                }
+
+                System.out.println(documentParser.smallestFont);
+                System.out.println(documentParser.largestFont);
+                String possTitle = documentParser.getTitle();
+                boolean end = false;
+                while (!end) {
+                    cView.displayInstruction("Is this title of the document:\n" + possTitle +
+                            "\nPress Y to save this as the title, press N to manually input the name");
+                    if (isGUI) {
+                        String[] options = new String[]{"3", "2", "1"};
+                        choice =Integer.valueOf(cView.displayPopUp(options));
+                    }
+                    else {
+                        String ans;
+                        if (isGUI) {
+                            String[] options = new String[]{"Yes", "No"};
+                            ans = cView.displayPopUp(options);
+                        }
+                        else {
+                             ans = cView.getInput();
+                        }
+
+                        if (ans.equals("Y") || ans.equals("y") || ans.equals("Yes")) {
+                            FileFormatter.addTitle(possTitle);
+                            end = true;
+                            valid = true;
+                        } else {
+                            end = true;
+                            choice = 3;
+                        }
+                    }
+                }
+
+                end = false;
+                String possAuthors = "";
+                try {
+                    //Get the possible authors names
+                    possAuthors = documentParser.getAuthors();
+                } catch (IOException e) {
+                    cView.displayErrorToScreen(e.getMessage());
+                }
+                while (!end) {
+                    cView.displayInstruction("Are these the authors of the document:\n" + possAuthors + "" +
+                            "\nPress Y to save this as the authors names, press N to manually input the names");
+
+                    String ans;
+                        if (isGUI) {
+                            String[] options = new String[]{"Yes", "No"};
+                            ans = cView.displayPopUp(options);
+                        }
+                        else {
+                            ans = cView.getInput();
+                        }
+
+
+                    if (ans.equals("Y") || ans.equals("y") || ans.equals("Yes")) {
+                        FileFormatter.addAuthors(possAuthors);
+                        //Check if there are more than 1 authors
+                        setYear(documentParser);
+                        end = true;
+                        valid = true;
+                    } else {
+                        end = true;
+                        choice = 3;
+                        valid = false;
+                    }
+                }
+
+
+                try {
+                    documentParser.close();
+                } catch (IOException e) {
+                    cView.displayErrorToScreen(e.getMessage());
+                }
+
+            } else if (choice == 3) {
+                //Add title to the document
+                boolean end = false;
+
+                String title = null;
+                while (!end) {
+                    cView.displayInstruction("Please write the title of the document. You don't need to write more than the first 10 words. \n" +
+                            "Ex: Apoptosis control by death and decoy receptors");
+                    title = cView.getInput();
+                    cView.displayInstruction("You typed: " + title + "" +
+                            "\nAre you sure you want to use this title? (Y/N)");
+                    String ans;
+                    if (isGUI) {
+                        String[] options = new String[]{"Yes", "No"};
+                        ans = cView.displayPopUp(options);
+                    }
+                    else {
+                        ans = cView.getInput();
+                    }
+
+                    if (ans.equals("Y") || ans.equals("y") || ans.equals("Yes")) {
+                        end = true;
+                    }
+                }
+
+                FileFormatter.addTitle(title);
+                end = false;
+                String authors = null;
+                while (!end) {
+                    cView.displayInstruction("Please write the names of the authors, as it appears on the paper, but without special" +
+                            " symbols. Please include at least 3 authors." +
+                            "\nIf there are more than 3, write only the first 3 in the EXACT order that they appear on the paper. SEPARATE them with ','" +
+                            "\nPlease write the names in the following format: Author1Name Author1LastName, Author2Name Author2LastName" +
+                            "\nEx: Elizabeth Slee, Mary Harte, Ruth Kluck");
+                    authors = cView.getInput();
+                    cView.displayToScreen("You typed: " + authors +
+                            "\nAre you sure you want to use this? (Y/N)");
+                    String ans;
+                    if (isGUI) {
+                        String[] options = new String[]{"Yes", "No"};
+                        ans = cView.displayPopUp(options);
+                    }
+                    else {
+                        ans = cView.getInput();
+                    }
+
+
+                    if (ans.equals("Y") || ans.equals("y") || ans.equals("Yes")) {
+                        if (authors.split(",").length <= 1) {
+                            cView.displayErrorToScreen("You only wrote one name. Please include more names or the year the paper was published");
+                        } else {
+                            authors = authorNamesValidator(authors);
+                            end = true;
+
+                        }
+                    }
+                }
+                setYear(null);
+                FileFormatter.addAuthors(authors);
+                valid = true;
+            }
+
+        }
+        return file;
+    }
+
+    //Ask for year the doc was published
+    private void setYear(DocumentParser documentParser) {
+            if (documentParser == null) {
+                //Manually input info
+                cView.displayInstruction("Please write the year the paper was published");
+                String year;
+                if (isGUI) {
+                    waitForInput("numericalInput");
+                    year = (String) submit.result;
+                }
+                else {
+                    year = cView.getInput();
+                }
+                FileFormatter.addYear(year);
+
+
+
+            }
+            else {
+                //Ask program to analyze the info
+                cView.displayToScreen("Trying to find the year the paper was published...");
+                cView.displayInstruction("Is this the year of the document? Press Y or N");
+
+
+                String year = documentParser.getYear();
+                cView.displayToScreen(year);
+                String ans;
+                if (isGUI) {
+                    String[] options = new String[]{"Yes", "No"};
+                    ans = cView.displayPopUp(options);
+                }
+                else {
+                    ans = cView.getInput();
+                }
+
+
+                if (ans.equals("Y") || ans.equals("y") || ans.equals("Yes")) {
+                    FileFormatter.addYear(year);
+                }
+                else {
+                    //If it could not find year, then manually do it.
+                    cView.displayInstruction("Please input the year");
+                    if (isGUI) {
+                        waitForInput("numericalInput");
+                        year = (String) submit.result;
+                    }
+                    else {
+                        year = cView.getInput();
+                    }
+                    FileFormatter.addYear(year);
+                }
+            }
+
+    }
+
 
     private void outputToFile() {
         FileOutput output = new FileOutput();
@@ -122,12 +437,16 @@ class Controller {
                         //Retrieve the authors of the paper
                         String authorsNamesTwin1 = FileFormatter.getAuthors();
                         //Get a regex with all possible name combinations of the authors
-                        String regexReadyTwin1 = generateReferenceRegex(authorsNamesTwin1, true);
+                        String regexReadyTwin1 = generateReferenceRegex(authorsNamesTwin1, true, false);
+                        //Get regex for just the main author (in case reference only contains his name)
+                        String mainAuthorTwin1 = generateReferenceRegex(authorsNamesTwin1, false, false);
                         //Gets the citation for twin1 found in this paper
                         String citationTwin1 = "";
+                        //Get the year the twin file was published
+                        int yearPublished = FileFormatter.getYear();
                         try {
-                            citationTwin1 = parser.getReference(regexReadyTwin1, authorsNamesTwin1);
-                        } catch (IllegalArgumentException e) {
+                            citationTwin1 = parser.getReference(regexReadyTwin1, authorsNamesTwin1, mainAuthorTwin1, yearPublished);
+                        } catch (Exception e) {
                             cView.displayErrorToScreen(e.getMessage());
                         }
                         FileFormatter.closeFile();
@@ -136,11 +455,13 @@ class Controller {
                         //For Twin2
                         FileFormatter.setFile(twinFile2);
                         String authorsNamesTwin2 = FileFormatter.getAuthors();
-                        String RegexReadyTwin2 = generateReferenceRegex(authorsNamesTwin2, true);
+                        String RegexReadyTwin2 = generateReferenceRegex(authorsNamesTwin2, true, false);
+                        String mainAuthorTwin2 = generateReferenceRegex(authorsNamesTwin2, false, false);
                         String citationTwin2 = "";
+                        int yearPublished2 = FileFormatter.getYear();
                         try {
-                            citationTwin2 = parser.getReference(RegexReadyTwin2, authorsNamesTwin2);
-                        } catch (IllegalArgumentException e) {
+                            citationTwin2 = parser.getReference(RegexReadyTwin2, authorsNamesTwin2, mainAuthorTwin2, yearPublished2);
+                        } catch (Exception e) {
                             cView.displayErrorToScreen(e.getMessage());
                         }
                         FileFormatter.closeFile();
@@ -277,8 +598,8 @@ class Controller {
 
 
                             //Generates a regex based online on the first author of the paper
-                            String authorRegexTwin1 = generateReferenceRegex(authorsNamesTwin1, false);
-                            String authorRegexTwin2 = generateReferenceRegex(authorsNamesTwin2, false);
+                            String authorRegexTwin1 = generateReferenceRegex(authorsNamesTwin1, false, true);
+                            String authorRegexTwin2 = generateReferenceRegex(authorsNamesTwin2, false, true);
 
 
                             for (String citation : citationsCurrDoc) {
@@ -305,8 +626,6 @@ class Controller {
                                     bFound = true;
                                     System.out.println("----Valid");
                                 }
-
-
                                 if (aFound && bFound) {
                                     xC = xC + 1;
                                 }
@@ -352,6 +671,8 @@ class Controller {
     String containsCitation(String citation, String authorRegex, String authorNamesTwin) {
 
         String pattern = (authorRegex) + "([^;)])*((\\b((18|19|20)\\d{2}([A-z])*(,( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+        pattern = (authorRegex) + "([^;)])*((\\b((18|19|20)\\d{2}([A-z])*((,|( and))( )?(((18|19|20)\\d{2}([A-z])*)|[A-z]))*)\\b)|unpublished data|data not shown)";
+
         Pattern pattern1 = Pattern.compile(pattern);
         Matcher matcher = pattern1.matcher(citation);
         ArrayList<String> results = new ArrayList<>();
@@ -456,7 +777,7 @@ class Controller {
         return answer;
     }
 
-    protected String generateReferenceRegex(String authors, boolean usesAnd) {
+    protected String generateReferenceRegex(String authors, boolean usesAnd, boolean isInText) {
         //Generates all possible references that could be found in a bibliography based on authors names
         //Ex: Xu Luo, X Luo, X. Luo, Luo X. Luo X
         //Splits string by authors names
@@ -524,7 +845,34 @@ class Controller {
             authorsRegex.append(")");
 
         }
-        return authorsRegex.toString();
+
+        if (usesAnd || isInText) {
+            return authorsRegex.toString();
+        } else {
+            //In case we are getting the reference, but we only need one author, them  we search using and for both names of the same author
+            String author = authorsRegex.toString();
+            author = author.replaceAll("\\(", "");
+            author = author.replaceAll("\\)", "");
+            String[] mainAuthorName = author.split("\\|");
+            //If there is only one author return
+            if (mainAuthorName.length == 1) {
+                return author;
+            }
+            StringBuilder newAuthorName = new StringBuilder();
+            int counter = 0;
+            for (String s : mainAuthorName) {
+                if (!s.isEmpty()) {
+                    if (counter == 0) {
+                        newAuthorName.append("(?=.*").append("(").append(s).append(")").append(")?");
+                    } else {
+                        newAuthorName.append("(?=.*").append("(").append(s).append(")").append(")");
+                    }
+                    counter++;
+                }
+            }
+            return newAuthorName.toString();
+
+        }
 
     }
 
@@ -535,171 +883,48 @@ class Controller {
     }
 
 
-    //Ask user to write name of paper, authors names and possibly year it was published
-    private void setTwinFiles() {
-        log.newLine();
-        cView.displayToScreen("Not all pdf files are formatted the same. The program will try to " +
-                "get the necessary data, but you will have to verify its accuracy");
 
-        //For first tween file
-        cView.displayToScreen("Please type the name of the first twin file. Ex: doc1.pdf");
-        File file1 = cView.getFile();
-        log.writeToLogFile("File 1 name " + file1.getName());
-        log.newLine();
-        twinFile1 = setTwinFileHelper(file1, 1);
-        try {
-            FileFormatter.closeFile();
-        } catch (IOException e) {
-            cView.displayErrorToScreen(e.getMessage());
-        }
 
-        //For file 2
-        cView.displayToScreen("Please type the name of the second twin file. Ex: doc2.pdf");
-        File file2 = cView.getFile();
-        log.writeToLogFile("File 2 name " + file2.getName());
-        log.newLine();
-        twinFile2 = setTwinFileHelper(file2, 2);
-        try {
-            FileFormatter.closeFile();
-        } catch (IOException e) {
-            cView.displayErrorToScreen(e.getMessage());
+    private String authorNamesValidator(String ans) {
+        ans = ans.replaceAll("[\\n\\r]", "");
+        ans = ans.replaceAll("[^A-z\\s-.,]", "");
+        ans = ans.replaceAll("^[ \\t]+|[ \\t]+$", "");
+        ans = ans.replaceAll(",\\.", "");
+        ans = ans.replaceAll(" and\\b", "");
+        while (ans.endsWith(",")) {
+            ans = ans.substring(0, ans.lastIndexOf(","));
         }
+        while (ans.endsWith(".")) {
+            ans = ans.substring(0, ans.lastIndexOf("."));
+        }
+        return ans;
     }
 
-    private File setTwinFileHelper(File file, int num) {
-        try {
-            FileFormatter.setFile(file);
-        } catch (IOException e) {
-            System.err.println(e.getMessage());
-        }
+    @Override
+    protected void update() {
 
-        cView.displayToScreen(FileFormatter.getCurrentInfo());
-        cView.displayToScreen("If the information is correct press 1. \nIf you want the program " +
-                "to try to get the right information press 2. \nTo write the information manually press 3.");
-        int choice = cView.getUserChoice();
-        boolean valid = false;
-        while (!valid) {
+    }
 
-            if (choice == 1) {
-                //If information is correct
-                if (num == 1) {
-                    twinFile1 = file;
-                } else {
-                    twinFile2 = file;
-                }
-                valid = true;
-
-            } else if (choice == 2) {
-                cView.displayToScreen("Loading");
-                DocumentParser documentParser = null;
-                try {
-                    documentParser = new DocumentParser(file, false, true);
-                } catch (IOException e) {
-                    cView.displayErrorToScreen("There was an error parsing the file");
-                }
-
-                System.out.println("-------------EXPERIMENTAL--------------");
-                System.out.println(documentParser.smallestFont);
-                System.out.println(documentParser.largestFont);
-                String possTitle = documentParser.getTitle();
-                boolean end = false;
-                while (!end) {
-                    cView.displayToScreen("Is this title of the document:\n" + possTitle);
-                    cView.displayToScreen("Press Y to save this as the title, press N to manually input the name");
-                    String ans = cView.getInput();
-
-                    if (ans.equals("Y") || ans.equals("y")) {
-                        FileFormatter.addTitle(possTitle);
-                        end = true;
-                        valid = true;
-                    } else {
-                        end = true;
-                        choice = 3;
+    private void waitForInput (String type) {
+        if (isGUI) {
+            submit = new SubmitListener(type);
+            cView.addSubmitListener(submit);
+            //wait until user input
+            synchronized (this) {
+                // wait for button press
+                while (holder.isEmpty()) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
-
-                end = false;
-                String possAuthors = "";
-                try {
-                    possAuthors = documentParser.getAuthors();
-                    if (possAuthors.split(",").length <= 1) {
-                        //Todo: make function
-                        documentParser.getYear();
-                    }
-                } catch (IOException e) {
-                    cView.displayErrorToScreen(e.getMessage());
-                }
-                while (!end) {
-                    cView.displayToScreen("Are these the authors of the document:\n" + possAuthors);
-                    cView.displayToScreen("Press Y to save this as the authors names, press N to manually input the names");
-                    String ans = cView.getInput();
-
-                    if (ans.equals("Y") || ans.equals("y")) {
-                        FileFormatter.addAuthors(possAuthors);
-                        end = true;
-                        valid = true;
-                    } else {
-                        end = true;
-                        choice = 3;
-                    }
-                }
-
-
-                try {
-                    documentParser.close();
-                } catch (IOException e) {
-                    cView.displayErrorToScreen(e.getMessage());
-                }
-
-            } else if (choice == 3) {
-                //Add title to the document
-                boolean end = false;
-
-                String title = null;
-                while (!end) {
-                    cView.displayToScreen("Please write the title of the document. You don't need to write more than the first 10 words. \n" +
-                            "Ex: Apoptosis control by death and decoy receptors");
-                    title = cView.getInput();
-                    cView.displayToScreen("You typed: " + title);
-                    cView.displayToScreen("Are you sure you want to use this title? (Y/N)");
-                    String ans = cView.getInput();
-
-                    if (ans.equals("Y") || ans.equals("y")) {
-                        end = true;
-                    }
-                }
-
-                FileFormatter.addTitle(title);
-                end = false;
-                String authors = null;
-                while (!end) {
-                    cView.displayToScreen("Please write the names of the authors, as it appears on the paper, but without special" +
-                            " symbols. Please include at least 3 authors." +
-                            "\nIf there are more than 3, write only the first 3 in the EXACT order that they appear on the paper. SEPARATE them with ','" +
-                            "\nIf there is only one author, please include the year the paper was published separated with a ','. Ex: Kerr, 2010" +
-                            "\nPlease write the names in the following format: Author1Name Author1LastName, Author2Name Author2LastName");
-                    cView.displayToScreen("Ex: Elizabeth Slee, Mary Harte, Ruth Kluck");
-                    authors = cView.getInput();
-                    cView.displayToScreen("You typed: " + authors);
-                    cView.displayToScreen("Are you sure you want to use this? (Y/N)");
-                    String ans = cView.getInput();
-
-                    if (ans.equals("Y") || ans.equals("y")) {
-                        if (ans.split(",").length <= 1) {
-                            cView.displayToScreen("You only wrote one name. Please include more names or the year the paper was published");
-                        } else {
-                            end = true;
-                        }
-                    }
-                }
-
-                FileFormatter.addAuthors(authors);
-                valid = true;
             }
-
         }
-        return file;
     }
+
+
+
 
 
 //
@@ -750,6 +975,66 @@ class Controller {
 //        }
 //    }
 //
+
+
+    /**
+     * Listens to a button press event on the submit button located in the view class
+     */
+    class SubmitListener implements ActionListener, Runnable {
+        String type;
+        Object result;
+        private String[] options;
+
+        public SubmitListener(String type) {
+             this.type = type;
+        }
+
+        public void actionPerformed(ActionEvent e) {
+            holder = "";
+            if (type.equals("getFile")) {
+
+                    try {
+                        result = cView.getFile();
+                        synchronized (Controller.this) {
+                            holder = "userHasInputSMT";
+                            Controller.this.notify();
+                        }
+                    } catch (IllegalArgumentException error) {
+                        cView.displayErrorToScreen(error.getMessage());
+                    }
+
+            }
+            else if (type.equals("numericalInput")) {
+                try {
+                    result = cView.getInput();
+                    try {
+                        Integer.valueOf((String) result);
+                        //If it is a number, then notify
+                        synchronized (Controller.this) {
+                            holder = "userHasInputSMT";
+                            Controller.this.notify();
+                        }
+                    } catch (NumberFormatException error) {
+                            cView.displayErrorToScreen("Please write only numbers");
+                        }
+                } catch (IllegalArgumentException error) {
+                    cView.displayErrorToScreen(error.getMessage());
+                }
+            }
+
+        }
+        Object getResult() {
+            return result;
+        }
+
+
+
+        @Override
+        public void run() {
+
+        }
+    }
+
 
 
 }
